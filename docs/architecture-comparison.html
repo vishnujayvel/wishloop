@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architecture Comparison: OpenSpec-Loki vs Worktrunk</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2333;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --accent-blue: #58a6ff;
+    --accent-green: #3fb950;
+    --accent-purple: #bc8cff;
+    --accent-orange: #d29922;
+    --accent-red: #f85149;
+    --accent-cyan: #39d2c0;
+    --accent-pink: #f778ba;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* --- Hero --- */
+  .hero {
+    text-align: center;
+    padding: 80px 20px 60px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(ellipse at center, rgba(88,166,255,0.08) 0%, transparent 60%);
+    animation: heroGlow 8s ease-in-out infinite alternate;
+  }
+  @keyframes heroGlow {
+    0% { transform: translate(-10%, -10%); }
+    100% { transform: translate(10%, 10%); }
+  }
+  .hero h1 {
+    font-size: 2.8rem;
+    font-weight: 700;
+    position: relative;
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 12px;
+  }
+  .hero .subtitle {
+    font-size: 1.1rem;
+    color: var(--text-muted);
+    position: relative;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  /* --- Navigation Tabs --- */
+  .tab-nav {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    padding: 0 20px;
+    margin-bottom: 40px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--bg);
+    padding-top: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tab-btn {
+    padding: 10px 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.3s;
+  }
+  .tab-btn:hover { border-color: var(--accent-blue); color: var(--text); }
+  .tab-btn.active {
+    background: rgba(88,166,255,0.1);
+    border-color: var(--accent-blue);
+    color: var(--accent-blue);
+  }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* --- Container --- */
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* --- Section --- */
+  .section {
+    margin-bottom: 60px;
+  }
+  .section-title {
+    font-size: 1.6rem;
+    font-weight: 600;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-title .icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+  }
+
+  /* --- Architecture Diagrams --- */
+  .arch-diagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 40px;
+    margin-bottom: 32px;
+    position: relative;
+    overflow: hidden;
+  }
+  .arch-diagram h3 {
+    font-size: 1.2rem;
+    margin-bottom: 24px;
+    color: var(--accent-blue);
+  }
+
+  /* --- Flow Nodes --- */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    align-items: center;
+  }
+  .flow-row {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .flow-node {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    min-width: 140px;
+    text-align: center;
+    position: relative;
+    transition: all 0.3s;
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  .flow-node.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .flow-node:hover {
+    border-color: var(--accent-blue);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(88,166,255,0.15);
+  }
+  .flow-node .phase-num {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+  .flow-node .phase-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  .flow-node .phase-detail {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+  .flow-node.highlight-blue { border-color: var(--accent-blue); background: rgba(88,166,255,0.08); }
+  .flow-node.highlight-green { border-color: var(--accent-green); background: rgba(63,185,80,0.08); }
+  .flow-node.highlight-purple { border-color: var(--accent-purple); background: rgba(188,140,255,0.08); }
+  .flow-node.highlight-orange { border-color: var(--accent-orange); background: rgba(210,153,34,0.08); }
+  .flow-node.highlight-red { border-color: var(--accent-red); background: rgba(248,81,73,0.08); }
+  .flow-node.highlight-cyan { border-color: var(--accent-cyan); background: rgba(57,210,192,0.08); }
+
+  .flow-arrow {
+    width: 2px;
+    height: 32px;
+    background: linear-gradient(to bottom, var(--border), var(--accent-blue));
+    position: relative;
+    opacity: 0;
+    transition: opacity 0.5s;
+  }
+  .flow-arrow.visible { opacity: 1; }
+  .flow-arrow::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: -4px;
+    width: 10px;
+    height: 10px;
+    border-right: 2px solid var(--accent-blue);
+    border-bottom: 2px solid var(--accent-blue);
+    transform: rotate(45deg);
+  }
+
+  .flow-loop-arrow {
+    width: 80%;
+    height: 40px;
+    border: 2px dashed var(--accent-orange);
+    border-top: none;
+    border-radius: 0 0 20px 20px;
+    position: relative;
+    opacity: 0;
+    transition: opacity 0.5s;
+    animation: loopPulse 3s ease-in-out infinite;
+  }
+  .flow-loop-arrow.visible { opacity: 1; }
+  @keyframes loopPulse {
+    0%, 100% { border-color: var(--accent-orange); }
+    50% { border-color: var(--accent-red); }
+  }
+  .flow-loop-label {
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.75rem;
+    color: var(--accent-orange);
+    background: var(--surface);
+    padding: 0 8px;
+    white-space: nowrap;
+  }
+
+  /* --- Worktrunk Flow --- */
+  .wt-flow {
+    display: flex;
+    gap: 12px;
+    align-items: stretch;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .wt-cmd {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    flex: 1;
+    min-width: 180px;
+    max-width: 220px;
+    text-align: center;
+    opacity: 0;
+    transform: scale(0.9);
+    transition: all 0.4s;
+  }
+  .wt-cmd.visible {
+    opacity: 1;
+    transform: scale(1);
+  }
+  .wt-cmd:hover {
+    border-color: var(--accent-green);
+    transform: scale(1.03);
+  }
+  .wt-cmd .cmd-icon { font-size: 1.8rem; margin-bottom: 8px; }
+  .wt-cmd .cmd-name {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--accent-green);
+    margin-bottom: 4px;
+  }
+  .wt-cmd .cmd-desc {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+
+  /* --- Comparison Table --- */
+  .compare-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .compare-table th, .compare-table td {
+    padding: 14px 18px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .compare-table th {
+    background: var(--surface2);
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+  }
+  .compare-table td { background: var(--surface); font-size: 0.9rem; }
+  .compare-table tr:last-child td { border-bottom: none; }
+  .compare-table .dim-header {
+    font-weight: 600;
+    color: var(--accent-blue);
+    min-width: 160px;
+  }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .badge-blue { background: rgba(88,166,255,0.15); color: var(--accent-blue); }
+  .badge-green { background: rgba(63,185,80,0.15); color: var(--accent-green); }
+  .badge-purple { background: rgba(188,140,255,0.15); color: var(--accent-purple); }
+  .badge-orange { background: rgba(210,153,34,0.15); color: var(--accent-orange); }
+
+  /* --- Hybrid Architecture --- */
+  .hybrid-diagram {
+    background: var(--surface);
+    border: 2px solid var(--accent-purple);
+    border-radius: 16px;
+    padding: 40px;
+    position: relative;
+  }
+  .hybrid-diagram::before {
+    content: 'PROPOSED HYBRID';
+    position: absolute;
+    top: -12px;
+    left: 32px;
+    background: var(--accent-purple);
+    color: var(--bg);
+    padding: 2px 12px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+
+  .layer {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+    position: relative;
+  }
+  .layer-label {
+    position: absolute;
+    top: -10px;
+    left: 16px;
+    background: var(--surface);
+    padding: 0 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .layer-blue { border-color: var(--accent-blue); }
+  .layer-blue .layer-label { color: var(--accent-blue); }
+  .layer-green { border-color: var(--accent-green); }
+  .layer-green .layer-label { color: var(--accent-green); }
+  .layer-purple { border-color: var(--accent-purple); }
+  .layer-purple .layer-label { color: var(--accent-purple); }
+  .layer-orange { border-color: var(--accent-orange); }
+  .layer-orange .layer-label { color: var(--accent-orange); }
+
+  .layer-content {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  .layer-item {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 0.85rem;
+    flex: 1;
+    min-width: 120px;
+    text-align: center;
+  }
+  .layer-item code {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.8rem;
+    color: var(--accent-cyan);
+  }
+
+  /* --- Verdict Section --- */
+  .verdict-card {
+    background: linear-gradient(135deg, rgba(188,140,255,0.08), rgba(88,166,255,0.08));
+    border: 1px solid var(--accent-purple);
+    border-radius: 16px;
+    padding: 32px;
+    margin-top: 32px;
+  }
+  .verdict-card h3 {
+    font-size: 1.3rem;
+    margin-bottom: 16px;
+    color: var(--accent-purple);
+  }
+  .verdict-card ul {
+    list-style: none;
+    padding: 0;
+  }
+  .verdict-card li {
+    padding: 8px 0;
+    padding-left: 24px;
+    position: relative;
+    font-size: 0.95rem;
+  }
+  .verdict-card li::before {
+    content: '>';
+    position: absolute;
+    left: 0;
+    color: var(--accent-purple);
+    font-weight: bold;
+    font-family: monospace;
+  }
+
+  /* --- Animated connector between layers --- */
+  .connector {
+    display: flex;
+    justify-content: center;
+    padding: 8px 0;
+  }
+  .connector-line {
+    width: 2px;
+    height: 24px;
+    background: var(--border);
+    position: relative;
+  }
+  .connector-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent-purple);
+    position: absolute;
+    left: -3px;
+    animation: dotTravel 2s ease-in-out infinite;
+  }
+  @keyframes dotTravel {
+    0% { top: 0; opacity: 0; }
+    20% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { top: 100%; opacity: 0; }
+  }
+
+  /* --- Side by Side Panels --- */
+  .side-by-side {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 768px) {
+    .side-by-side { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 2rem; }
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+  }
+  .panel h3 {
+    font-size: 1.1rem;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .panel ul { list-style: none; padding: 0; }
+  .panel li {
+    padding: 6px 0;
+    font-size: 0.88rem;
+    color: var(--text-muted);
+    padding-left: 16px;
+    position: relative;
+  }
+  .panel li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    transform: translateY(-50%);
+  }
+  .panel-blue li::before { background: var(--accent-blue); }
+  .panel-green li::before { background: var(--accent-green); }
+
+  /* --- Migration Steps --- */
+  .migration-steps {
+    counter-reset: step;
+  }
+  .migration-step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px 20px 60px;
+    margin-bottom: 12px;
+    position: relative;
+    transition: all 0.3s;
+  }
+  .migration-step:hover {
+    border-color: var(--accent-cyan);
+    transform: translateX(4px);
+  }
+  .migration-step::before {
+    counter-increment: step;
+    content: counter(step);
+    position: absolute;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent-cyan);
+    color: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+  }
+  .migration-step h4 { font-size: 0.95rem; margin-bottom: 4px; }
+  .migration-step p { font-size: 0.82rem; color: var(--text-muted); }
+  .migration-step code {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    background: var(--surface2);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    color: var(--accent-cyan);
+  }
+
+  /* --- Footer --- */
+  footer {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    border-top: 1px solid var(--border);
+    margin-top: 60px;
+  }
+</style>
+</head>
+<body>
+
+<!-- Hero -->
+<div class="hero">
+  <h1>OpenSpec-Loki vs Worktrunk</h1>
+  <p class="subtitle">Architecture comparison and integration analysis for your SDLC orchestration stack</p>
+</div>
+
+<!-- Tab Navigation -->
+<nav class="tab-nav">
+  <button class="tab-btn active" data-tab="current">Our Architecture</button>
+  <button class="tab-btn" data-tab="worktrunk">Worktrunk</button>
+  <button class="tab-btn" data-tab="compare">Side-by-Side</button>
+  <button class="tab-btn" data-tab="hybrid">Hybrid Proposal</button>
+</nav>
+
+<!-- ===================== TAB 1: CURRENT ARCHITECTURE ===================== -->
+<div class="tab-content active" id="tab-current">
+  <div class="container">
+
+    <div class="section">
+      <h2 class="section-title"><span class="icon" style="background:rgba(88,166,255,0.15);">1</span> OpenSpec + Loki Loop: 9-Phase Pipeline</h2>
+      <p style="color:var(--text-muted); margin-bottom:24px; font-size:0.92rem;">
+        Born from a real failure: Loki shipped 9 bugs because the spec pipeline had no feedback loop.
+        This system closes that gap: <strong>spec &rarr; execute &rarr; verify &rarr; file bugs &rarr; learn &rarr; loop</strong>.
+      </p>
+
+      <div class="arch-diagram">
+        <div class="flow" id="openspec-flow">
+          <!-- Row 1: Classification & Intake -->
+          <div class="flow-row">
+            <div class="flow-node highlight-blue" data-delay="0">
+              <div class="phase-num">Phase 1</div>
+              <div class="phase-name">Classify Work</div>
+              <div class="phase-detail">Greenfield / Feature / Bug Batch / Refactor / Research</div>
+            </div>
+            <div class="flow-node highlight-blue" data-delay="100">
+              <div class="phase-num">Phase 2</div>
+              <div class="phase-name">Intake</div>
+              <div class="phase-detail">Read specs, git state, CLAUDE.md, detect build system</div>
+            </div>
+          </div>
+          <div class="flow-arrow"></div>
+
+          <!-- Row 2: Spec -->
+          <div class="flow-row">
+            <div class="flow-node highlight-purple" data-delay="200">
+              <div class="phase-num">Phase 3</div>
+              <div class="phase-name">Spec via OpenSpec CLI</div>
+              <div class="phase-detail">proposal.md &rarr; design.md &rarr; specs/ &rarr; tasks.md</div>
+            </div>
+          </div>
+          <div class="flow-arrow"></div>
+
+          <!-- Row 3: Context + Execute -->
+          <div class="flow-row">
+            <div class="flow-node highlight-orange" data-delay="300">
+              <div class="phase-num">Phase 4</div>
+              <div class="phase-name">Context Prep</div>
+              <div class="phase-detail">Inject learnings, update CLAUDE.md, checkpoint commit</div>
+            </div>
+            <div class="flow-node highlight-green" data-delay="400">
+              <div class="phase-num">Phase 5</div>
+              <div class="phase-name">Execute (Loki)</div>
+              <div class="phase-detail">nohup loki start --parallel --openspec</div>
+            </div>
+          </div>
+          <div class="flow-arrow"></div>
+
+          <!-- Row 4: Monitor -->
+          <div class="flow-row">
+            <div class="flow-node highlight-cyan" data-delay="500">
+              <div class="phase-num">Phase 6</div>
+              <div class="phase-name">Gardening Agent</div>
+              <div class="phase-detail">5-min monitoring: commits, status, build, conflicts</div>
+            </div>
+          </div>
+          <div class="flow-arrow"></div>
+
+          <!-- Row 5: Capture + Verify -->
+          <div class="flow-row">
+            <div class="flow-node highlight-orange" data-delay="600">
+              <div class="phase-num">Phase 7</div>
+              <div class="phase-name">Post-Run Capture</div>
+              <div class="phase-detail">Run instance JSON, extract learnings, update knowledge</div>
+            </div>
+            <div class="flow-node highlight-red" data-delay="700">
+              <div class="phase-num">Phase 8</div>
+              <div class="phase-name">Verify &amp; File</div>
+              <div class="phase-detail">Build, test, type-check, gh issue create</div>
+            </div>
+          </div>
+          <div class="flow-arrow"></div>
+
+          <!-- Row 6: Loop -->
+          <div class="flow-row">
+            <div class="flow-node highlight-red" data-delay="800" style="border-style:dashed;">
+              <div class="phase-num">Phase 9</div>
+              <div class="phase-name">Autonomous Loop</div>
+              <div class="phase-detail">Re-fetch issues &rarr; re-batch &rarr; Phases 3-8 &rarr; repeat until clean</div>
+            </div>
+          </div>
+
+          <!-- Loop arrow -->
+          <div class="flow-loop-arrow">
+            <div class="flow-loop-label">Loop until 0 bugs or max 5 iterations</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Key Components -->
+    <div class="section">
+      <h2 class="section-title"><span class="icon" style="background:rgba(63,185,80,0.15);">2</span> Key Components</h2>
+      <div class="side-by-side">
+        <div class="panel panel-blue">
+          <h3><span style="color:var(--accent-blue);">&#9670;</span> OpenSpec CLI</h3>
+          <ul>
+            <li>Generates delta specs (ADDED / MODIFIED / REMOVED)</li>
+            <li>Artifacts: proposal.md, design.md, specs/, tasks.md</li>
+            <li>Validation gate before execution</li>
+            <li>Archive command for post-run cleanup</li>
+            <li>Install via npm: openspec CLI</li>
+          </ul>
+        </div>
+        <div class="panel panel-blue">
+          <h3><span style="color:var(--accent-blue);">&#9670;</span> Loki Mode</h3>
+          <ul>
+            <li>Multi-agent autonomous execution engine</li>
+            <li>Reads CLAUDE.md for project context at startup</li>
+            <li>Parallel agent spawning with --parallel flag</li>
+            <li>Dashboard at localhost:57374</li>
+            <li>Requires --dangerously-skip-permissions</li>
+          </ul>
+        </div>
+        <div class="panel panel-blue">
+          <h3><span style="color:var(--accent-blue);">&#9670;</span> Gardening Agent</h3>
+          <ul>
+            <li>5-minute polling loop during Loki execution</li>
+            <li>5 checks: commits, STATUS.txt, agents, build, conflicts</li>
+            <li>Anomaly detection: stalls, crashes, build breaks</li>
+            <li>Steering commands: PAUSE / STOP / HUMAN_INPUT</li>
+            <li>Journals to docs/plans/pipeline-journal.md</li>
+          </ul>
+        </div>
+        <div class="panel panel-blue">
+          <h3><span style="color:var(--accent-blue);">&#9670;</span> Institutional Learning</h3>
+          <ul>
+            <li>Stored at ~/.local/share/wishloop/</li>
+            <li>learnings.json: categorized by tech/loki/workflow/testing</li>
+            <li>Injected into CLAUDE.md before each Loki run</li>
+            <li>Deduplication across entries</li>
+            <li>Run instance records for history</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Worktree Handling Today -->
+    <div class="section">
+      <h2 class="section-title"><span class="icon" style="background:rgba(248,81,73,0.15);">!</span> Current Worktree Handling (Pain Point)</h2>
+      <div class="arch-diagram" style="border-color: var(--accent-red); border-style: dashed;">
+        <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:16px;">
+          Today, worktree isolation is handled via <code style="color:var(--accent-cyan);background:var(--surface2);padding:2px 6px;border-radius:4px;">references/worktree-isolation.md</code> &mdash;
+          a manual reference doc. No tooling, no lifecycle management, no merge automation.
+        </p>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:200px;background:var(--surface2);border-radius:8px;padding:16px;border-left:3px solid var(--accent-red);">
+            <strong style="color:var(--accent-red);">Manual git worktree add</strong>
+            <p style="font-size:0.82rem;color:var(--text-muted);margin-top:4px;">Type branch name 3 times. cd into path manually. Hope you remember the naming convention.</p>
+          </div>
+          <div style="flex:1;min-width:200px;background:var(--surface2);border-radius:8px;padding:16px;border-left:3px solid var(--accent-red);">
+            <strong style="color:var(--accent-red);">Manual cleanup</strong>
+            <p style="font-size:0.82rem;color:var(--text-muted);margin-top:4px;">cd back, git worktree remove, git branch -d. Easy to leave orphans.</p>
+          </div>
+          <div style="flex:1;min-width:200px;background:var(--surface2);border-radius:8px;padding:16px;border-left:3px solid var(--accent-red);">
+            <strong style="color:var(--accent-red);">No merge automation</strong>
+            <p style="font-size:0.82rem;color:var(--text-muted);margin-top:4px;">Squash, rebase, ff-merge, cleanup are all separate manual steps.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===================== TAB 2: WORKTRUNK ===================== -->
+<div class="tab-content" id="tab-worktrunk">
+  <div class="container">
+
+    <div class="section">
+      <h2 class="section-title"><span class="icon" style="background:rgba(63,185,80,0.15);">&#9670;</span> Worktrunk: Purpose-Built Worktree Manager</h2>
+      <p style="color:var(--text-muted); margin-bottom:8px; font-size:0.92rem;">
+        Rust CLI by max-sixty. Most popular git worktree manager. Built for running AI agents in parallel.
+      </p>
+      <p style="color:var(--text-muted); margin-bottom:24px; font-size:0.82rem;">
+        <span class="badge badge-green">MIT / Apache-2.0</span>
+        <span class="badge badge-green" style="margin-left:4px;">Rust (unsafe = forbid)</span>
+        <span class="badge badge-blue" style="margin-left:4px;">brew install worktrunk</span>
+      </p>
+
+      <!-- Core Commands -->
+      <div class="arch-diagram">
+        <h3>Core Commands</h3>
+        <div class="wt-flow" id="wt-flow">
+          <div class="wt-cmd" data-delay="0">
+            <div class="cmd-icon">&#128256;</div>
+            <div class="cmd-name">wt switch</div>
+            <div class="cmd-desc">Create &amp; switch worktrees. <code>-c</code> creates new branch, <code>-x claude</code> launches agent</div>
+          </div>
+          <div class="wt-cmd" data-delay="150">
+            <div class="cmd-icon">&#128203;</div>
+            <div class="cmd-name">wt list</div>
+            <div class="cmd-desc">Status dashboard: staged, ahead/behind, CI status, LLM summaries per branch</div>
+          </div>
+          <div class="wt-cmd" data-delay="300">
+            <div class="cmd-icon">&#128279;</div>
+            <div class="cmd-name">wt merge</div>
+            <div class="cmd-desc">Squash + rebase + ff-merge + cleanup in one command. LLM commit messages.</div>
+          </div>
+          <div class="wt-cmd" data-delay="450">
+            <div class="cmd-icon">&#128465;</div>
+            <div class="cmd-name">wt remove</div>
+            <div class="cmd-desc">Clean up worktree + branch. Warns on uncommitted changes.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hook System -->
+      <div class="arch-diagram">
+        <h3>Hook Lifecycle</h3>
+        <div class="flow" id="wt-hooks-flow">
+          <div class="flow-row">
+            <div class="flow-node highlight-green" data-delay="0">
+              <div class="phase-name">pre-start</div>
+              <div class="phase-detail">Before worktree creation</div>
+            </div>
+            <div class="flow-node highlight-green" data-delay="100">
+              <div class="phase-name">post-start</div>
+              <div class="phase-detail">After creation: install deps, start dev server, copy caches</div>
+            </div>
+          </div>
+          <div class="flow-arrow"></div>
+          <div class="flow-row">
+            <div class="flow-node highlight-cyan" data-delay="200">
+              <div class="phase-name">Agent runs</div>
+              <div class="phase-detail">Claude / Codex / custom agent works in isolated worktree</div>
+            </div>
+          </div>
+          <div class="flow-arrow"></div>
+          <div class="flow-row">
+            <div class="flow-node highlight-orange" data-delay="300">
+              <div class="phase-name">pre-merge</div>
+              <div class="phase-detail">Run tests, lint, validate before merge</div>
+            </div>
+            <div class="flow-node highlight-orange" data-delay="400">
+              <div class="phase-name">post-merge</div>
+              <div class="phase-detail">Deploy, notify, cleanup</div>
+            </div>
+          </div>
+          <div class="flow-arrow"></div>
+          <div class="flow-row">
+            <div class="flow-node highlight-purple" data-delay="500">
+              <div class="phase-name">pre-remove</div>
+              <div class="phase-detail">Final safety check before cleanup</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Key Features -->
+      <div class="section">
+        <h2 class="section-title"><span class="icon" style="background:rgba(57,210,192,0.15);">+</span> Advanced Features</h2>
+        <div class="side-by-side">
+          <div class="panel panel-green">
+            <h3><span style="color:var(--accent-green);">&#9670;</span> Agent Integration</h3>
+            <ul>
+              <li><code>wt switch -c -x claude feat</code> &mdash; create + launch in one shot</li>
+              <li>Args after <code>--</code> passed to agent as prompt</li>
+              <li>Per-worktree dev server via hash_port template</li>
+              <li>Build cache copying (target/, node_modules/)</li>
+              <li>Ships its own Claude Code skill + plugin</li>
+            </ul>
+          </div>
+          <div class="panel panel-green">
+            <h3><span style="color:var(--accent-green);">&#9670;</span> Quality of Life</h3>
+            <ul>
+              <li>Interactive picker with live diff + log previews</li>
+              <li><code>wt switch pr:123</code> &mdash; jump to any PR's branch</li>
+              <li><code>wt list --full</code> &mdash; CI status + AI summaries</li>
+              <li>LLM-generated commit messages from diffs</li>
+              <li>Prefers failure over silent data loss (--keep not --hard)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== TAB 3: SIDE-BY-SIDE ===================== -->
+<div class="tab-content" id="tab-compare">
+  <div class="container">
+
+    <div class="section">
+      <h2 class="section-title"><span class="icon" style="background:rgba(210,153,34,0.15);">&#8596;</span> Dimension Comparison</h2>
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>Dimension</th>
+            <th style="color:var(--accent-blue);">OpenSpec + Loki Loop</th>
+            <th style="color:var(--accent-green);">Worktrunk</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="dim-header">Layer</td>
+            <td><span class="badge badge-blue">SDLC Orchestrator</span> High-level: decides WHAT to build and WHEN</td>
+            <td><span class="badge badge-green">Worktree Manager</span> Low-level: manages WHERE code lives and HOW agents run</td>
+          </tr>
+          <tr>
+            <td class="dim-header">Scope</td>
+            <td>Full pipeline: spec &rarr; execute &rarr; verify &rarr; bug file &rarr; loop</td>
+            <td>Worktree lifecycle: create &rarr; agent &rarr; merge &rarr; cleanup</td>
+          </tr>
+          <tr>
+            <td class="dim-header">Spec Generation</td>
+            <td>OpenSpec CLI: proposal, design, specs, tasks</td>
+            <td>None &mdash; not its job</td>
+          </tr>
+          <tr>
+            <td class="dim-header">Agent Execution</td>
+            <td>Delegates to Loki Mode (<code>loki start --parallel</code>)</td>
+            <td><code>wt switch -c -x claude</code> per worktree</td>
+          </tr>
+          <tr>
+            <td class="dim-header">Worktree Management</td>
+            <td>Manual reference doc (<code>worktree-isolation.md</code>)</td>
+            <td>Full lifecycle: hooks, merge automation, cleanup, status</td>
+          </tr>
+          <tr>
+            <td class="dim-header">Monitoring</td>
+            <td>Gardening agent: 5-min polling, anomaly detection, steering</td>
+            <td><code>wt list --full</code>: CI status, summaries (snapshot, not continuous)</td>
+          </tr>
+          <tr>
+            <td class="dim-header">Verification</td>
+            <td>Build + test + type-check + gh issue create</td>
+            <td>pre-merge hooks (user-defined)</td>
+          </tr>
+          <tr>
+            <td class="dim-header">Merge Strategy</td>
+            <td>Manual git merge/PR</td>
+            <td>Automated: squash + rebase + ff + cleanup in one <code>wt merge</code></td>
+          </tr>
+          <tr>
+            <td class="dim-header">Learning System</td>
+            <td>learnings.json, run instances, CLAUDE.md injection</td>
+            <td>None</td>
+          </tr>
+          <tr>
+            <td class="dim-header">Feedback Loop</td>
+            <td>Phase 9: auto-refetch issues, re-batch, re-execute up to 5x</td>
+            <td>None &mdash; single pass per worktree</td>
+          </tr>
+          <tr>
+            <td class="dim-header">Implementation</td>
+            <td>Claude Code SKILL.md + shell scripts</td>
+            <td>Rust CLI (unsafe=forbid), 60+ deps, comprehensive tests</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="verdict-card" style="margin-top:32px;">
+        <h3>Key Insight: Different Layers, Not Competitors</h3>
+        <ul>
+          <li><strong>OpenSpec-Loki</strong> answers: "What should we build? Is it right? What did we learn?"</li>
+          <li><strong>Worktrunk</strong> answers: "Where does each agent work? How do we merge the results?"</li>
+          <li>Your current system has a <strong>gap in the middle</strong> &mdash; worktree management is manual and fragile</li>
+          <li>Worktrunk fills that gap precisely, without overlapping with the spec/verify/learn loop</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===================== TAB 4: HYBRID ===================== -->
+<div class="tab-content" id="tab-hybrid">
+  <div class="container">
+
+    <div class="section">
+      <h2 class="section-title"><span class="icon" style="background:rgba(188,140,255,0.15);">&#9733;</span> Hybrid Architecture: Loki + Worktrunk</h2>
+      <p style="color:var(--text-muted); margin-bottom:24px; font-size:0.92rem;">
+        Worktrunk becomes the <strong>execution substrate</strong> for Phases 5-6.
+        Everything above (spec) and below (verify/learn/loop) stays unchanged.
+      </p>
+
+      <div class="hybrid-diagram" id="hybrid-diagram">
+        <!-- Layer 1: Orchestration (unchanged) -->
+        <div class="layer layer-blue">
+          <div class="layer-label">Orchestration Layer (unchanged)</div>
+          <div class="layer-content">
+            <div class="layer-item"><strong>Phase 1</strong><br>Classify Work</div>
+            <div class="layer-item"><strong>Phase 2</strong><br>Intake</div>
+            <div class="layer-item"><strong>Phase 3</strong><br>OpenSpec CLI</div>
+            <div class="layer-item"><strong>Phase 4</strong><br>Context Prep + Learnings</div>
+          </div>
+        </div>
+
+        <div class="connector"><div class="connector-line"><div class="connector-dot"></div></div></div>
+
+        <!-- Layer 2: Execution (Worktrunk replaces manual) -->
+        <div class="layer layer-green">
+          <div class="layer-label">Execution Layer (Worktrunk replaces manual worktrees)</div>
+          <div class="layer-content">
+            <div class="layer-item">
+              <strong>Phase 5a</strong><br>
+              <code>wt switch -c -x claude &lt;change&gt;</code><br>
+              <span style="font-size:0.78rem;color:var(--text-muted);">One command = branch + worktree + agent launch</span>
+            </div>
+            <div class="layer-item">
+              <strong>Phase 5b</strong><br>
+              <code>wt switch -c -x claude &lt;change-2&gt;</code><br>
+              <span style="font-size:0.78rem;color:var(--text-muted);">Parallel agents in separate worktrees</span>
+            </div>
+            <div class="layer-item">
+              <strong>Hooks</strong><br>
+              <code>post-start: npm install</code><br>
+              <span style="font-size:0.78rem;color:var(--text-muted);">Auto-setup per worktree via WT hooks</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="connector"><div class="connector-line"><div class="connector-dot" style="animation-delay:0.5s;"></div></div></div>
+
+        <!-- Layer 3: Monitoring (enhanced) -->
+        <div class="layer layer-orange">
+          <div class="layer-label">Monitoring Layer (enhanced)</div>
+          <div class="layer-content">
+            <div class="layer-item">
+              <strong>Phase 6a</strong><br>
+              <code>wt list --full</code><br>
+              <span style="font-size:0.78rem;color:var(--text-muted);">CI status + AI summaries per agent</span>
+            </div>
+            <div class="layer-item">
+              <strong>Phase 6b</strong><br>
+              Gardening Agent<br>
+              <span style="font-size:0.78rem;color:var(--text-muted);">Still runs 5-min polling + anomaly detection</span>
+            </div>
+            <div class="layer-item">
+              <strong>Combined</strong><br>
+              <code>wt list</code> feeds gardening<br>
+              <span style="font-size:0.78rem;color:var(--text-muted);">Structured status instead of raw git parsing</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="connector"><div class="connector-line"><div class="connector-dot" style="animation-delay:1s;"></div></div></div>
+
+        <!-- Layer 4: Merge (new capability from WT) -->
+        <div class="layer layer-purple">
+          <div class="layer-label">Merge Layer (new capability from Worktrunk)</div>
+          <div class="layer-content">
+            <div class="layer-item">
+              <strong>pre-merge</strong><br>
+              <code>run tests + lint</code><br>
+              <span style="font-size:0.78rem;color:var(--text-muted);">WT hook triggers Phase 8 verification</span>
+            </div>
+            <div class="layer-item">
+              <strong>wt merge main</strong><br>
+              <code>squash + rebase + ff</code><br>
+              <span style="font-size:0.78rem;color:var(--text-muted);">One command replaces manual merge workflow</span>
+            </div>
+            <div class="layer-item">
+              <strong>post-merge</strong><br>
+              <code>openspec archive</code><br>
+              <span style="font-size:0.78rem;color:var(--text-muted);">WT hook triggers archival + cleanup</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="connector"><div class="connector-line"><div class="connector-dot" style="animation-delay:1.5s;"></div></div></div>
+
+        <!-- Layer 5: Learning & Loop (unchanged) -->
+        <div class="layer layer-blue">
+          <div class="layer-label">Learning & Loop Layer (unchanged)</div>
+          <div class="layer-content">
+            <div class="layer-item"><strong>Phase 7</strong><br>Capture run instance + learnings</div>
+            <div class="layer-item"><strong>Phase 8</strong><br>Verify + file issues</div>
+            <div class="layer-item"><strong>Phase 9</strong><br>Autonomous loop (re-batch &rarr; repeat)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Migration Steps -->
+    <div class="section">
+      <h2 class="section-title"><span class="icon" style="background:rgba(57,210,192,0.15);">&#10148;</span> Migration Path</h2>
+      <div class="migration-steps">
+        <div class="migration-step">
+          <h4>Install Worktrunk</h4>
+          <p><code>brew install worktrunk && wt config shell install</code>. Zero risk, additive only.</p>
+        </div>
+        <div class="migration-step">
+          <h4>Add project hooks</h4>
+          <p>Create <code>.worktrunk.toml</code> with post-start hooks (npm install, copy caches) and pre-merge hooks (test suite, lint).</p>
+        </div>
+        <div class="migration-step">
+          <h4>Update Phase 5 in SKILL.md</h4>
+          <p>Replace <code>nohup loki start ... &</code> with <code>wt switch -c -x "loki start --parallel" &lt;change&gt;</code>. Loki runs inside worktree.</p>
+        </div>
+        <div class="migration-step">
+          <h4>Enhance Phase 6 gardening</h4>
+          <p>Gardening agent calls <code>wt list --json</code> for structured status instead of raw git parsing. Same anomaly detection, cleaner data.</p>
+        </div>
+        <div class="migration-step">
+          <h4>Wire pre-merge hook to Phase 8</h4>
+          <p>WT <code>pre-merge</code> hook runs build + test + type-check. Failed pre-merge blocks <code>wt merge</code>. Issues filed automatically.</p>
+        </div>
+        <div class="migration-step">
+          <h4>Wire post-merge hook to archival</h4>
+          <p>WT <code>post-merge</code> hook runs <code>openspec archive &lt;change&gt;</code> + captures run instance. Worktree cleaned up automatically.</p>
+        </div>
+        <div class="migration-step">
+          <h4>Delete references/worktree-isolation.md</h4>
+          <p>The manual reference doc becomes obsolete. Worktrunk handles the entire worktree lifecycle.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Final Verdict -->
+    <div class="verdict-card">
+      <h3>Verdict: Integrate, Don't Replace</h3>
+      <ul>
+        <li><strong>Worktrunk is not a replacement for your loop</strong> &mdash; it has no spec generation, no verification, no learning, no autonomous iteration</li>
+        <li><strong>Worktrunk replaces the weakest part of your stack</strong> &mdash; the manual worktree management that's currently just a reference doc</li>
+        <li><strong>The hook system is the bridge</strong> &mdash; WT hooks map cleanly to your existing phases (pre-merge = Phase 8, post-merge = archival)</li>
+        <li><strong>Bonus capability</strong> &mdash; parallel bug-batch waves become trivial: <code>wt switch -c -x claude wave-1</code>, <code>wt switch -c -x claude wave-2</code></li>
+        <li><strong>Rename opportunity</strong> &mdash; with Worktrunk handling the "loop" orchestration at the git layer, the skill name can drop "loop" and become simply <strong>"loki"</strong> or <strong>"specloop"</strong></li>
+      </ul>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===================== SCRIPTS ===================== -->
+<script>
+  // Tab switching
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+      // Re-trigger animations for the new tab
+      animateVisibleElements();
+    });
+  });
+
+  // Scroll-triggered animations
+  function animateVisibleElements() {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const delay = parseInt(entry.target.dataset.delay || 0);
+          setTimeout(() => {
+            entry.target.classList.add('visible');
+          }, delay);
+        }
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.flow-node, .flow-arrow, .flow-loop-arrow, .wt-cmd').forEach(el => {
+      observer.observe(el);
+    });
+  }
+
+  // Initial animation
+  animateVisibleElements();
+
+  // Animate arrows when their preceding node becomes visible
+  const flowArrows = document.querySelectorAll('.flow-arrow, .flow-loop-arrow');
+  const arrowObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        setTimeout(() => entry.target.classList.add('visible'), 300);
+      }
+    });
+  }, { threshold: 0.1 });
+  flowArrows.forEach(a => arrowObserver.observe(a));
+</script>
+
+<footer>
+  Generated 2026-03-25 &middot; OpenSpec Loki Loop &times; Worktrunk Architecture Analysis
+</footer>
+
+</body>
+</html>

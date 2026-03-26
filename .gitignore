@@ -1,0 +1,15 @@
+# Development artifacts (specs, product context, progress)
+.claude/
+
+# Loki execution state
+.loki/
+
+# OpenSpec changes (personal project data)
+openspec/changes/
+
+# Temp files
+*.log
+.DS_Store
+
+# Local tool state
+excalidraw.log

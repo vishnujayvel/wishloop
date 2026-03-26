@@ -1,0 +1,119 @@
+{
+  "skill_name": "wishloop",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "ok I have this project with openspec/ already set up and I want to build a real-time notifications system from scratch using loki to execute it autonomously",
+      "should_trigger": true,
+      "expected_output": "Classifies as Greenfield or Feature, runs openspec new change, preps context, launches loki"
+    },
+    {
+      "id": 2,
+      "prompt": "fix issues #1 through #9 using the loki loop — they're all bugs from the last run",
+      "should_trigger": true,
+      "expected_output": "Classifies as Bug Batch, runs batching algorithm, creates waves, launches loki per wave"
+    },
+    {
+      "id": 3,
+      "prompt": "run the SDLC loop on this project, I want the full spec -> build -> verify cycle",
+      "should_trigger": true,
+      "expected_output": "Triggers the full Phase 1-9 pipeline"
+    },
+    {
+      "id": 4,
+      "prompt": "loki finished about 10 minutes ago, let's verify what it built and triage any bugs",
+      "should_trigger": true,
+      "expected_output": "Jumps to Phase 7 (capture) then Phase 8 (verification)"
+    },
+    {
+      "id": 5,
+      "prompt": "continue where we left off — I think there was an active openspec change for the auth refactor",
+      "should_trigger": true,
+      "expected_output": "Reads openspec/changes/ to find active work, resumes from last phase"
+    },
+    {
+      "id": 6,
+      "prompt": "archive the dark-mode change and check if there are remaining issues to fix",
+      "should_trigger": true,
+      "expected_output": "Runs openspec archive, checks gh issue list, proposes next iteration"
+    },
+    {
+      "id": 7,
+      "prompt": "I want to refactor our data layer from SQLite to Postgres, use the full openspec pipeline with loki execution",
+      "should_trigger": true,
+      "expected_output": "Classifies as Refactor, generates MODIFIED delta specs, launches loki"
+    },
+    {
+      "id": 8,
+      "prompt": "add dark mode support to the app — use openspec to spec it and loki to build it",
+      "should_trigger": true,
+      "expected_output": "Classifies as Feature, runs Phase 1-9"
+    },
+    {
+      "id": 9,
+      "prompt": "brainstorm the auth flow — I want to explore different approaches before committing to one",
+      "should_trigger": false,
+      "expected_output": "Should route to superpowers:brainstorming, not wishloop"
+    },
+    {
+      "id": 10,
+      "prompt": "research GraphQL vs REST for our API — give me a comparison with pros and cons",
+      "should_trigger": false,
+      "expected_output": "Should route to deep-research, not wishloop"
+    },
+    {
+      "id": 11,
+      "prompt": "I'm getting a null pointer exception in the login handler, can you fix it?",
+      "should_trigger": false,
+      "expected_output": "Generic bug fix without openspec/loki context — handle directly or use systematic-debugging"
+    },
+    {
+      "id": 12,
+      "prompt": "plan my day — I have a mock interview at 2pm and need to review some PRs",
+      "should_trigger": false,
+      "expected_output": "Should route to daily-copilot"
+    },
+    {
+      "id": 13,
+      "prompt": "build this feature end-to-end using the PDLC process with kiro specs",
+      "should_trigger": false,
+      "expected_output": "Explicitly mentions PDLC and kiro — should route to pdlc-autopilot"
+    },
+    {
+      "id": 14,
+      "prompt": "add tests for the login component — just unit tests, nothing fancy",
+      "should_trigger": false,
+      "expected_output": "No openspec/loki context — handle directly as a simple coding task"
+    },
+    {
+      "id": 15,
+      "prompt": "evaluate DynamoDB vs Aurora for our write-heavy workload — I need a spike document",
+      "should_trigger": false,
+      "expected_output": "Research/spike without openspec context — should route to deep-research"
+    },
+    {
+      "id": 16,
+      "prompt": "write a blog post about how we built our notification system",
+      "should_trigger": false,
+      "expected_output": "Writing task, not SDLC — handle directly"
+    },
+    {
+      "id": 17,
+      "prompt": "wishloop this feature — I want the full spec and build cycle",
+      "should_trigger": true,
+      "expected_output": "Triggers as 'wishloop' keyword matches"
+    },
+    {
+      "id": 18,
+      "prompt": "use worktrunk to run these three bugs in parallel worktrees",
+      "should_trigger": true,
+      "expected_output": "Triggers on worktrunk + parallel execution context with loki/openspec intent"
+    },
+    {
+      "id": 19,
+      "prompt": "install worktrunk on my machine",
+      "should_trigger": false,
+      "expected_output": "Generic install request without SDLC/loki context — handle directly"
+    }
+  ]
+}
