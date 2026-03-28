@@ -71,6 +71,30 @@ Worktrunk is optional. Everything falls back gracefully to manual git when it's 
 - **Graceful degradation.** Each phase outputs clear artifacts. You can resume mid-cycle.
 - **XDG compliance.** Skill data lives in `~/.local/share/wishloop/`, not project repos.
 
+## Visual Guide
+
+<p align="center">
+  <img src="./the-loop.svg" alt="The 9-Phase Closed Loop" width="100%"/>
+</p>
+
+<p align="center">
+  <img src="./the-swarm.svg" alt="Parallel Wave Execution" width="100%"/>
+</p>
+
+<p align="center">
+  <img src="./the-gardener.svg" alt="Autonomous Monitoring" width="100%"/>
+</p>
+
+<p align="center">
+  <img src="./the-memory.svg" alt="Compound Learning" width="100%"/>
+</p>
+
+<p align="center">
+  <img src="./rarv.svg" alt="RARV Agent Inner Loop" width="100%"/>
+</p>
+
+---
+
 ## Architecture
 
 ```
