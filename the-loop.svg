@@ -1,0 +1,720 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500">
+  <foreignObject width="800" height="500">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="width:800px;height:500px;position:relative;overflow:hidden;">
+      <style>
+        /* ── Base tokens ── */
+        :root {
+          --bg: #0d1117;
+          --bg-node: #0d1117;
+          --border-dim: #21262d;
+          --text-dim: #484f58;
+          --text-title: #484f58;
+          --green: #7ee787;
+          --green-bright: #3fb950;
+          --glow: rgba(126, 231, 135, 0.25);
+          --line-dim: #21262d;
+          --line-lit: #3fb950;
+          --font: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+        }
+
+        /* ── Light mode ── */
+        @media (prefers-color-scheme: light) {
+          :root {
+            --bg: #ffffff;
+            --bg-node: #f6f8fa;
+            --border-dim: #d0d7de;
+            --text-dim: #656d76;
+            --text-title: #656d76;
+            --green: #1a7f37;
+            --green-bright: #1a7f37;
+            --glow: rgba(26, 127, 55, 0.15);
+            --line-dim: #d0d7de;
+            --line-lit: #1a7f37;
+          }
+        }
+
+        /* ── Reduced motion ── */
+        @media (prefers-reduced-motion: reduce) {
+          *, *::before, *::after {
+            animation-duration: 0.01s !important;
+            animation-iteration-count: 1 !important;
+          }
+        }
+
+        /* ── Scene container ── */
+        .scene {
+          width: 800px;
+          height: 500px;
+          background: var(--bg);
+          position: relative;
+          font-family: var(--font);
+          animation: sceneFade 25s infinite;
+        }
+
+        @keyframes sceneFade {
+          0%, 2% { opacity: 0; }
+          4%, 94% { opacity: 1; }
+          97%, 100% { opacity: 0; }
+        }
+
+        /* ── Title ── */
+        .title {
+          position: absolute;
+          top: 18px;
+          left: 0;
+          width: 100%;
+          text-align: center;
+          font-size: 10px;
+          letter-spacing: 3px;
+          text-transform: uppercase;
+          color: var(--text-title);
+          font-weight: 600;
+        }
+
+        /* ── Nodes ── */
+        .node {
+          position: absolute;
+          width: 90px;
+          height: 36px;
+          border: 1.5px solid var(--border-dim);
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 1.5px;
+          color: var(--text-dim);
+          background: var(--bg-node);
+          transition: none;
+          box-sizing: border-box;
+        }
+
+        /* ── Node positions (clock arrangement, cx=400, cy=260, rx=175, ry=155) ── */
+        /* 1. CLASSIFY  - top (0deg / 12 o'clock)   */
+        .node-1 { left: 355px; top: 75px; }
+        /* 2. INTAKE    - top-right (40deg)           */
+        .node-2 { left: 487px; top: 91px; }
+        /* 3. SPEC      - right (90deg)               */
+        .node-3 { left: 540px; top: 182px; }
+        /* 4. CONTEXT   - bottom-right (135deg)       */
+        .node-4 { left: 505px; top: 300px; }
+        /* 5. EXECUTE   - bottom (180deg)             */
+        .node-5 { left: 355px; top: 360px; }
+        /* 6. MONITOR   - bottom-left (225deg)        */
+        .node-6 { left: 198px; top: 300px; }
+        /* 7. CAPTURE   - left (270deg)               */
+        .node-7 { left: 162px; top: 182px; }
+        /* 8. VERIFY    - top-left (315deg)           */
+        .node-8 { left: 205px; top: 91px; }
+
+        /* ── Node lighting keyframes ── */
+        /* Total cycle: 25s. Each iteration = ~7.5s (phases 1-8 + loop-back).
+           3 iterations + finale + fade = 25s.
+           Phase timing per iteration:
+             Iter 1: 1.0s - 7.8s   (phases at 1.0, 1.85, 2.7, 3.55, 4.4, 5.25, 6.1, 6.95)
+             Iter 2: 8.0s - 14.8s
+             Iter 3: 15.0s - 21.8s
+             Finale: 22.0s - 23.5s
+             Fade: 23.5s - 25s
+        */
+
+        /* Iteration 1 timings (% of 25s): */
+        /* Phase 1: 4%-7.4%   = 1.0s-1.85s */
+        /* Phase 2: 7.4%-10.8% */
+        /* Phase 3: 10.8%-14.2% */
+        /* Phase 4: 14.2%-17.6% */
+        /* Phase 5: 17.6%-21% */
+        /* Phase 6: 21%-24.4% */
+        /* Phase 7: 24.4%-27.8% */
+        /* Phase 8: 27.8%-31.2% */
+        /* Iteration 2: 32%-56.4% */
+        /* Iteration 3: 60%-84.4% */
+        /* Finale: 88%-94% */
+
+        @keyframes light1 {
+          0%, 3.9% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+          4%, 31% { border-color: var(--green); color: var(--green); box-shadow: 0 0 12px var(--glow); }
+          31.5%, 31.9% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+          32%, 59% { border-color: var(--green); color: var(--green); box-shadow: 0 0 12px var(--glow); }
+          59.5%, 59.9% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+          60%, 87% { border-color: var(--green); color: var(--green); box-shadow: 0 0 12px var(--glow); }
+          87.5%, 100% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+        }
+
+        @keyframes light2 {
+          0%, 7.3% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+          7.4%, 31% { border-color: var(--green); color: var(--green); box-shadow: 0 0 12px var(--glow); }
+          31.5%, 35.3% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+          35.4%, 59% { border-color: var(--green); color: var(--green); box-shadow: 0 0 12px var(--glow); }
+          59.5%, 63.3% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+          63.4%, 87% { border-color: var(--green); color: var(--green); box-shadow: 0 0 12px var(--glow); }
+          87.5%, 100% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+        }
+
+        @keyframes light3 {
+          0%, 10.7% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+          10.8%, 31% { border-color: var(--green); color: var(--green); box-shadow: 0 0 12px var(--glow); }
+          31.5%, 38.7% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+          38.8%, 59% { border-color: var(--green); color: var(--green); box-shadow: 0 0 12px var(--glow); }
+          59.5%, 66.7% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+          66.8%, 87% { border-color: var(--green); color: var(--green); box-shadow: 0 0 12px var(--glow); }
+          87.5%, 100% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+        }
+
+        @keyframes light4 {
+          0%, 14.1% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+          14.2%, 31% { border-color: var(--green); color: var(--green); box-shadow: 0 0 12px var(--glow); }
+          31.5%, 42.1% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+          42.2%, 59% { border-color: var(--green); color: var(--green); box-shadow: 0 0 12px var(--glow); }
+          59.5%, 70.1% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+          70.2%, 87% { border-color: var(--green); color: var(--green); box-shadow: 0 0 12px var(--glow); }
+          87.5%, 100% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+        }
+
+        @keyframes light5 {
+          0%, 17.5% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+          17.6%, 31% { border-color: var(--green); color: var(--green); box-shadow: 0 0 12px var(--glow); }
+          31.5%, 45.5% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+          45.6%, 59% { border-color: var(--green); color: var(--green); box-shadow: 0 0 12px var(--glow); }
+          59.5%, 73.5% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+          73.6%, 87% { border-color: var(--green); color: var(--green); box-shadow: 0 0 12px var(--glow); }
+          87.5%, 100% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+        }
+
+        @keyframes light6 {
+          0%, 20.9% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+          21%, 31% { border-color: var(--green); color: var(--green); box-shadow: 0 0 12px var(--glow); }
+          31.5%, 48.9% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+          49%, 59% { border-color: var(--green); color: var(--green); box-shadow: 0 0 12px var(--glow); }
+          59.5%, 76.9% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+          77%, 87% { border-color: var(--green); color: var(--green); box-shadow: 0 0 12px var(--glow); }
+          87.5%, 100% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+        }
+
+        @keyframes light7 {
+          0%, 24.3% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+          24.4%, 31% { border-color: var(--green); color: var(--green); box-shadow: 0 0 12px var(--glow); }
+          31.5%, 52.3% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+          52.4%, 59% { border-color: var(--green); color: var(--green); box-shadow: 0 0 12px var(--glow); }
+          59.5%, 80.3% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+          80.4%, 87% { border-color: var(--green); color: var(--green); box-shadow: 0 0 12px var(--glow); }
+          87.5%, 100% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+        }
+
+        @keyframes light8 {
+          0%, 27.7% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+          27.8%, 31% { border-color: var(--green); color: var(--green); box-shadow: 0 0 12px var(--glow); }
+          31.5%, 55.7% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+          55.8%, 59% { border-color: var(--green); color: var(--green); box-shadow: 0 0 12px var(--glow); }
+          59.5%, 83.7% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+          83.8%, 87% { border-color: var(--green); color: var(--green); box-shadow: 0 0 12px var(--glow); }
+          87.5%, 100% { border-color: var(--border-dim); color: var(--text-dim); box-shadow: none; }
+        }
+
+        .node-1 { animation: light1 25s infinite; }
+        .node-2 { animation: light2 25s infinite; }
+        .node-3 { animation: light3 25s infinite; }
+        .node-4 { animation: light4 25s infinite; }
+        .node-5 { animation: light5 25s infinite; }
+        .node-6 { animation: light6 25s infinite; }
+        .node-7 { animation: light7 25s infinite; }
+        .node-8 { animation: light8 25s infinite; }
+
+        /* ── Connecting lines ── */
+        .line {
+          position: absolute;
+          background: var(--line-dim);
+          transform-origin: 0 0;
+        }
+
+        /* Line segments connecting each node pair.
+           We use thin (1.5px height) absolutely-positioned divs rotated to connect node centers. */
+
+        .line-seg {
+          position: absolute;
+          height: 1.5px;
+          background: var(--line-dim);
+          transform-origin: left center;
+        }
+
+        /* Animated line overlay - dashed, appears when lit */
+        .line-flow {
+          position: absolute;
+          height: 2px;
+          transform-origin: left center;
+          background: repeating-linear-gradient(
+            90deg,
+            var(--line-lit) 0px,
+            var(--line-lit) 4px,
+            transparent 4px,
+            transparent 8px
+          );
+          opacity: 0;
+        }
+
+        /* Line positions - connecting node centers clockwise */
+        /* Node centers (approx):
+           1: (400, 93)
+           2: (532, 109)
+           3: (585, 200)
+           4: (550, 318)
+           5: (400, 378)
+           6: (243, 318)
+           7: (207, 200)
+           8: (250, 109)
+        */
+
+        /* 1->2: from (400,93) to (532,109), dx=132, dy=16 */
+        .seg-12, .flow-12 { left: 400px; top: 93px; width: 133px; transform: rotate(6.9deg); }
+        /* 2->3: from (532,109) to (585,200), dx=53, dy=91 */
+        .seg-23, .flow-23 { left: 532px; top: 109px; width: 105px; transform: rotate(59.8deg); }
+        /* 3->4: from (585,200) to (550,318), dx=-35, dy=118 */
+        .seg-34, .flow-34 { left: 585px; top: 200px; width: 123px; transform: rotate(106.5deg); }
+        /* 4->5: from (550,318) to (400,378), dx=-150, dy=60 */
+        .seg-45, .flow-45 { left: 550px; top: 318px; width: 162px; transform: rotate(158.2deg); }
+        /* 5->6: from (400,378) to (243,318), dx=-157, dy=-60 */
+        .seg-56, .flow-56 { left: 400px; top: 378px; width: 168px; transform: rotate(200.9deg); }
+        /* 6->7: from (243,318) to (207,200), dx=-36, dy=-118 */
+        .seg-67, .flow-67 { left: 243px; top: 318px; width: 123px; transform: rotate(-73.0deg); }
+        /* 7->8: from (207,200) to (250,109), dx=43, dy=-91 */
+        .seg-78, .flow-78 { left: 207px; top: 200px; width: 101px; transform: rotate(-64.7deg); }
+        /* 8->1: from (250,109) to (400,93), dx=150, dy=-16 */
+        .seg-81, .flow-81 { left: 250px; top: 109px; width: 151px; transform: rotate(-6.1deg); }
+
+        /* Flow line animations - dash movement */
+        @keyframes dashFlow {
+          0% { background-position: 0 0; }
+          100% { background-position: 80px 0; }
+        }
+
+        /* Flow visibility per segment per iteration */
+        @keyframes flow12 {
+          0%, 7.3% { opacity: 0; }
+          7.4%, 31% { opacity: 1; }
+          31.5%, 35.3% { opacity: 0; }
+          35.4%, 59% { opacity: 1; }
+          59.5%, 63.3% { opacity: 0; }
+          63.4%, 87% { opacity: 1; }
+          87.5%, 100% { opacity: 0; }
+        }
+        @keyframes flow23 {
+          0%, 10.7% { opacity: 0; }
+          10.8%, 31% { opacity: 1; }
+          31.5%, 38.7% { opacity: 0; }
+          38.8%, 59% { opacity: 1; }
+          59.5%, 66.7% { opacity: 0; }
+          66.8%, 87% { opacity: 1; }
+          87.5%, 100% { opacity: 0; }
+        }
+        @keyframes flow34 {
+          0%, 14.1% { opacity: 0; }
+          14.2%, 31% { opacity: 1; }
+          31.5%, 42.1% { opacity: 0; }
+          42.2%, 59% { opacity: 1; }
+          59.5%, 70.1% { opacity: 0; }
+          70.2%, 87% { opacity: 1; }
+          87.5%, 100% { opacity: 0; }
+        }
+        @keyframes flow45 {
+          0%, 17.5% { opacity: 0; }
+          17.6%, 31% { opacity: 1; }
+          31.5%, 45.5% { opacity: 0; }
+          45.6%, 59% { opacity: 1; }
+          59.5%, 73.5% { opacity: 0; }
+          73.6%, 87% { opacity: 1; }
+          87.5%, 100% { opacity: 0; }
+        }
+        @keyframes flow56 {
+          0%, 20.9% { opacity: 0; }
+          21%, 31% { opacity: 1; }
+          31.5%, 48.9% { opacity: 0; }
+          49%, 59% { opacity: 1; }
+          59.5%, 76.9% { opacity: 0; }
+          77%, 87% { opacity: 1; }
+          87.5%, 100% { opacity: 0; }
+        }
+        @keyframes flow67 {
+          0%, 24.3% { opacity: 0; }
+          24.4%, 31% { opacity: 1; }
+          31.5%, 52.3% { opacity: 0; }
+          52.4%, 59% { opacity: 1; }
+          59.5%, 80.3% { opacity: 0; }
+          80.4%, 87% { opacity: 1; }
+          87.5%, 100% { opacity: 0; }
+        }
+        @keyframes flow78 {
+          0%, 27.7% { opacity: 0; }
+          27.8%, 31% { opacity: 1; }
+          31.5%, 55.7% { opacity: 0; }
+          55.8%, 59% { opacity: 1; }
+          59.5%, 83.7% { opacity: 0; }
+          83.8%, 87% { opacity: 1; }
+          87.5%, 100% { opacity: 0; }
+        }
+        @keyframes flow81 {
+          0%, 30.9% { opacity: 0; }
+          31%, 31.4% { opacity: 1; }
+          31.5%, 58.9% { opacity: 0; }
+          59%, 59.4% { opacity: 1; }
+          59.5%, 86.9% { opacity: 0; }
+          87%, 87.4% { opacity: 1; }
+          87.5%, 100% { opacity: 0; }
+        }
+
+        .flow-12 { animation: flow12 25s infinite, dashFlow 1s linear infinite; }
+        .flow-23 { animation: flow23 25s infinite, dashFlow 1s linear infinite; }
+        .flow-34 { animation: flow34 25s infinite, dashFlow 1s linear infinite; }
+        .flow-45 { animation: flow45 25s infinite, dashFlow 1s linear infinite; }
+        .flow-56 { animation: flow56 25s infinite, dashFlow 1s linear infinite; }
+        .flow-67 { animation: flow67 25s infinite, dashFlow 1s linear infinite; }
+        .flow-78 { animation: flow78 25s infinite, dashFlow 1s linear infinite; }
+        .flow-81 { animation: flow81 25s infinite, dashFlow 1s linear infinite; }
+
+        /* ── Center hub ── */
+        .center-hub {
+          position: absolute;
+          left: 350px;
+          top: 200px;
+          width: 100px;
+          height: 68px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          border: 1.5px solid var(--border-dim);
+          border-radius: 12px;
+          background: var(--bg-node);
+          box-sizing: border-box;
+        }
+
+        .center-label {
+          font-size: 9px;
+          letter-spacing: 2px;
+          text-transform: uppercase;
+          color: var(--text-dim);
+          font-weight: 600;
+          font-family: var(--font);
+        }
+
+        .center-phase {
+          font-size: 11px;
+          letter-spacing: 1.5px;
+          text-transform: uppercase;
+          color: var(--green);
+          font-weight: 700;
+          font-family: var(--font);
+          margin-top: 2px;
+          animation: loopLabel 25s infinite;
+        }
+
+        @keyframes loopLabel {
+          0%, 3.9% { opacity: 0.3; }
+          4%, 87% { opacity: 1; }
+          87.5%, 100% { opacity: 0.3; }
+        }
+
+        /* ── Iteration counter ── */
+        .iter-display {
+          position: absolute;
+          left: 350px;
+          top: 280px;
+          width: 100px;
+          text-align: center;
+          font-family: var(--font);
+        }
+
+        .iter-label {
+          font-size: 8px;
+          letter-spacing: 2px;
+          text-transform: uppercase;
+          color: var(--text-dim);
+          font-weight: 500;
+        }
+
+        .iter-num {
+          font-size: 22px;
+          font-weight: 700;
+          color: var(--green);
+          font-family: var(--font);
+          line-height: 1.2;
+        }
+
+        /* Counter cycling: iter 1 from 4-31%, iter 2 from 32-59%, iter 3 from 60-87% */
+        .iter-1, .iter-2, .iter-3 {
+          display: none;
+          font-size: 22px;
+          font-weight: 700;
+          color: var(--green);
+          font-family: var(--font);
+          line-height: 1.2;
+        }
+
+        @keyframes showIter1 {
+          0%, 3.9% { visibility: hidden; }
+          4%, 31.4% { visibility: visible; }
+          31.5%, 100% { visibility: hidden; }
+        }
+        @keyframes showIter2 {
+          0%, 31.9% { visibility: hidden; }
+          32%, 59.4% { visibility: visible; }
+          59.5%, 100% { visibility: hidden; }
+        }
+        @keyframes showIter3 {
+          0%, 59.9% { visibility: hidden; }
+          60%, 87.4% { visibility: visible; }
+          87.5%, 100% { visibility: hidden; }
+        }
+
+        .iter-1 { display: block; visibility: hidden; animation: showIter1 25s infinite; }
+        .iter-2 { display: block; visibility: hidden; animation: showIter2 25s infinite; }
+        .iter-3 { display: block; visibility: hidden; animation: showIter3 25s infinite; }
+
+        /* ── Pipeline Clean message ── */
+        .pipeline-clean {
+          position: absolute;
+          left: 300px;
+          top: 320px;
+          width: 200px;
+          text-align: center;
+          font-family: var(--font);
+          font-size: 12px;
+          font-weight: 700;
+          letter-spacing: 2px;
+          text-transform: uppercase;
+          color: var(--green);
+          opacity: 0;
+          animation: showClean 25s infinite;
+        }
+
+        @keyframes showClean {
+          0%, 87.9% { opacity: 0; }
+          88.5%, 93% { opacity: 1; }
+          95%, 100% { opacity: 0; }
+        }
+
+        /* ── Phase number badges ── */
+        .badge {
+          position: absolute;
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          font-size: 8px;
+          font-weight: 700;
+          font-family: var(--font);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--text-dim);
+          border: 1px solid var(--border-dim);
+          background: var(--bg);
+        }
+
+        /* Badge positions - top-left of each node */
+        .badge-1 { left: 349px; top: 69px; }
+        .badge-2 { left: 481px; top: 85px; }
+        .badge-3 { left: 534px; top: 176px; }
+        .badge-4 { left: 499px; top: 294px; }
+        .badge-5 { left: 349px; top: 354px; }
+        .badge-6 { left: 192px; top: 294px; }
+        .badge-7 { left: 156px; top: 176px; }
+        .badge-8 { left: 199px; top: 85px; }
+
+        @keyframes badgeLight1 {
+          0%, 3.9% { color: var(--text-dim); border-color: var(--border-dim); }
+          4%, 31% { color: var(--green); border-color: var(--green); }
+          31.5%, 31.9% { color: var(--text-dim); border-color: var(--border-dim); }
+          32%, 59% { color: var(--green); border-color: var(--green); }
+          59.5%, 59.9% { color: var(--text-dim); border-color: var(--border-dim); }
+          60%, 87% { color: var(--green); border-color: var(--green); }
+          87.5%, 100% { color: var(--text-dim); border-color: var(--border-dim); }
+        }
+        @keyframes badgeLight2 {
+          0%, 7.3% { color: var(--text-dim); border-color: var(--border-dim); }
+          7.4%, 31% { color: var(--green); border-color: var(--green); }
+          31.5%, 35.3% { color: var(--text-dim); border-color: var(--border-dim); }
+          35.4%, 59% { color: var(--green); border-color: var(--green); }
+          59.5%, 63.3% { color: var(--text-dim); border-color: var(--border-dim); }
+          63.4%, 87% { color: var(--green); border-color: var(--green); }
+          87.5%, 100% { color: var(--text-dim); border-color: var(--border-dim); }
+        }
+        @keyframes badgeLight3 {
+          0%, 10.7% { color: var(--text-dim); border-color: var(--border-dim); }
+          10.8%, 31% { color: var(--green); border-color: var(--green); }
+          31.5%, 38.7% { color: var(--text-dim); border-color: var(--border-dim); }
+          38.8%, 59% { color: var(--green); border-color: var(--green); }
+          59.5%, 66.7% { color: var(--text-dim); border-color: var(--border-dim); }
+          66.8%, 87% { color: var(--green); border-color: var(--green); }
+          87.5%, 100% { color: var(--text-dim); border-color: var(--border-dim); }
+        }
+        @keyframes badgeLight4 {
+          0%, 14.1% { color: var(--text-dim); border-color: var(--border-dim); }
+          14.2%, 31% { color: var(--green); border-color: var(--green); }
+          31.5%, 42.1% { color: var(--text-dim); border-color: var(--border-dim); }
+          42.2%, 59% { color: var(--green); border-color: var(--green); }
+          59.5%, 70.1% { color: var(--text-dim); border-color: var(--border-dim); }
+          70.2%, 87% { color: var(--green); border-color: var(--green); }
+          87.5%, 100% { color: var(--text-dim); border-color: var(--border-dim); }
+        }
+        @keyframes badgeLight5 {
+          0%, 17.5% { color: var(--text-dim); border-color: var(--border-dim); }
+          17.6%, 31% { color: var(--green); border-color: var(--green); }
+          31.5%, 45.5% { color: var(--text-dim); border-color: var(--border-dim); }
+          45.6%, 59% { color: var(--green); border-color: var(--green); }
+          59.5%, 73.5% { color: var(--text-dim); border-color: var(--border-dim); }
+          73.6%, 87% { color: var(--green); border-color: var(--green); }
+          87.5%, 100% { color: var(--text-dim); border-color: var(--border-dim); }
+        }
+        @keyframes badgeLight6 {
+          0%, 20.9% { color: var(--text-dim); border-color: var(--border-dim); }
+          21%, 31% { color: var(--green); border-color: var(--green); }
+          31.5%, 48.9% { color: var(--text-dim); border-color: var(--border-dim); }
+          49%, 59% { color: var(--green); border-color: var(--green); }
+          59.5%, 76.9% { color: var(--text-dim); border-color: var(--border-dim); }
+          77%, 87% { color: var(--green); border-color: var(--green); }
+          87.5%, 100% { color: var(--text-dim); border-color: var(--border-dim); }
+        }
+        @keyframes badgeLight7 {
+          0%, 24.3% { color: var(--text-dim); border-color: var(--border-dim); }
+          24.4%, 31% { color: var(--green); border-color: var(--green); }
+          31.5%, 52.3% { color: var(--text-dim); border-color: var(--border-dim); }
+          52.4%, 59% { color: var(--green); border-color: var(--green); }
+          59.5%, 80.3% { color: var(--text-dim); border-color: var(--border-dim); }
+          80.4%, 87% { color: var(--green); border-color: var(--green); }
+          87.5%, 100% { color: var(--text-dim); border-color: var(--border-dim); }
+        }
+        @keyframes badgeLight8 {
+          0%, 27.7% { color: var(--text-dim); border-color: var(--border-dim); }
+          27.8%, 31% { color: var(--green); border-color: var(--green); }
+          31.5%, 55.7% { color: var(--text-dim); border-color: var(--border-dim); }
+          55.8%, 59% { color: var(--green); border-color: var(--green); }
+          59.5%, 83.7% { color: var(--text-dim); border-color: var(--border-dim); }
+          83.8%, 87% { color: var(--green); border-color: var(--green); }
+          87.5%, 100% { color: var(--text-dim); border-color: var(--border-dim); }
+        }
+
+        .badge-1 { animation: badgeLight1 25s infinite; }
+        .badge-2 { animation: badgeLight2 25s infinite; }
+        .badge-3 { animation: badgeLight3 25s infinite; }
+        .badge-4 { animation: badgeLight4 25s infinite; }
+        .badge-5 { animation: badgeLight5 25s infinite; }
+        .badge-6 { animation: badgeLight6 25s infinite; }
+        .badge-7 { animation: badgeLight7 25s infinite; }
+        .badge-8 { animation: badgeLight8 25s infinite; }
+
+        /* ── Center hub glow animation ── */
+        @keyframes hubGlow {
+          0%, 3.9% { border-color: var(--border-dim); box-shadow: none; }
+          4%, 87% { border-color: var(--green); box-shadow: 0 0 20px var(--glow); }
+          87.5%, 100% { border-color: var(--border-dim); box-shadow: none; }
+        }
+
+        .center-hub { animation: hubGlow 25s infinite; }
+
+        /* ── Subtle ring decoration ── */
+        .ring {
+          position: absolute;
+          left: 288px;
+          top: 128px;
+          width: 224px;
+          height: 214px;
+          border: 1px dashed var(--border-dim);
+          border-radius: 50%;
+          opacity: 0.3;
+          pointer-events: none;
+        }
+
+        /* ── Footer ── */
+        .footer {
+          position: absolute;
+          bottom: 14px;
+          left: 0;
+          width: 100%;
+          text-align: center;
+          font-size: 8px;
+          letter-spacing: 2px;
+          text-transform: uppercase;
+          color: var(--text-dim);
+          font-family: var(--font);
+          opacity: 0.5;
+        }
+
+        /* ── Arrow tips (small triangles at end of flow lines) ── */
+        .arrow-tip {
+          position: absolute;
+          width: 0;
+          height: 0;
+          border-style: solid;
+        }
+      </style>
+
+      <div class="scene">
+        <!-- Title -->
+        <div class="title">The Wishloop &#x2014; 9 Phase Closed Loop</div>
+
+        <!-- Subtle ring -->
+        <div class="ring"></div>
+
+        <!-- Connection lines (dim base) -->
+        <div class="line-seg seg-12"></div>
+        <div class="line-seg seg-23"></div>
+        <div class="line-seg seg-34"></div>
+        <div class="line-seg seg-45"></div>
+        <div class="line-seg seg-56"></div>
+        <div class="line-seg seg-67"></div>
+        <div class="line-seg seg-78"></div>
+        <div class="line-seg seg-81"></div>
+
+        <!-- Flow lines (animated dashes) -->
+        <div class="line-flow flow-12"></div>
+        <div class="line-flow flow-23"></div>
+        <div class="line-flow flow-34"></div>
+        <div class="line-flow flow-45"></div>
+        <div class="line-flow flow-56"></div>
+        <div class="line-flow flow-67"></div>
+        <div class="line-flow flow-78"></div>
+        <div class="line-flow flow-81"></div>
+
+        <!-- Phase number badges -->
+        <div class="badge badge-1">1</div>
+        <div class="badge badge-2">2</div>
+        <div class="badge badge-3">3</div>
+        <div class="badge badge-4">4</div>
+        <div class="badge badge-5">5</div>
+        <div class="badge badge-6">6</div>
+        <div class="badge badge-7">7</div>
+        <div class="badge badge-8">8</div>
+
+        <!-- Phase nodes -->
+        <div class="node node-1">CLASSIFY</div>
+        <div class="node node-2">INTAKE</div>
+        <div class="node node-3">SPEC</div>
+        <div class="node node-4">CONTEXT</div>
+        <div class="node node-5">EXECUTE</div>
+        <div class="node node-6">MONITOR</div>
+        <div class="node node-7">CAPTURE</div>
+        <div class="node node-8">VERIFY</div>
+
+        <!-- Center hub (Phase 9: LOOP) -->
+        <div class="center-hub">
+          <div class="center-label">Phase 9</div>
+          <div class="center-phase">LOOP</div>
+        </div>
+
+        <!-- Iteration counter -->
+        <div class="iter-display">
+          <div class="iter-label">Iteration</div>
+          <div class="iter-1">1</div>
+          <div class="iter-2">2</div>
+          <div class="iter-3">3</div>
+        </div>
+
+        <!-- Pipeline Clean message -->
+        <div class="pipeline-clean">Pipeline Clean</div>
+
+        <!-- Footer -->
+        <div class="footer">Closed-loop autonomous development</div>
+      </div>
+    </div>
+  </foreignObject>
+</svg>

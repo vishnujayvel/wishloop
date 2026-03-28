@@ -1,0 +1,762 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-label="The Swarm — Parallel Wave Execution: animated diagram showing parallel wave execution with multiple worktrees">
+  <title>The Swarm — Parallel Wave Execution</title>
+  <defs>
+    <style>
+      /* ── Base palette (dark mode default) ── */
+      :root {
+        --bg: #0d1117;
+        --fg: #7ee787;
+        --fg-dim: #484f58;
+        --fg-muted: #30363d;
+        --red: #f85149;
+        --orange: #d29922;
+        --yellow: #e3b341;
+        --green: #7ee787;
+        --white: #c9d1d9;
+        --branch-bar: #161b22;
+      }
+
+      /* ── Light mode ── */
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #ffffff;
+          --fg: #1a7f37;
+          --fg-dim: #656d76;
+          --fg-muted: #d0d7de;
+          --red: #cf222e;
+          --orange: #9a6700;
+          --yellow: #7d4e00;
+          --green: #1a7f37;
+          --white: #1f2328;
+          --branch-bar: #f6f8fa;
+        }
+      }
+
+      /* ── Reduced motion ── */
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation-duration: 0.01s !important;
+          animation-iteration-count: 1 !important;
+        }
+      }
+
+      /* ── Typography ── */
+      .title {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        fill: var(--fg-dim);
+      }
+      .label {
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 9px;
+        fill: var(--fg-dim);
+      }
+      .label-bright {
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 9px;
+        fill: var(--fg);
+      }
+      .label-white {
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 9px;
+        fill: var(--white);
+      }
+      .label-sm {
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 7.5px;
+        fill: var(--fg-dim);
+      }
+      .role-label {
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 7px;
+        fill: var(--white);
+        text-anchor: middle;
+      }
+      .section-label {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        fill: var(--fg-dim);
+      }
+      .badge-text {
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 10px;
+        font-weight: 700;
+        fill: var(--bg);
+        text-anchor: middle;
+      }
+
+      /* ── Backlog bar ── */
+      .backlog-bar {
+        fill: var(--branch-bar);
+        stroke: var(--fg-muted);
+        stroke-width: 1;
+        rx: 4;
+      }
+
+      /* ── Issue dots ── */
+      .dot-red { fill: var(--red); }
+      .dot-orange { fill: var(--orange); }
+      .dot-yellow { fill: var(--yellow); }
+
+      /* ── Worktree box ── */
+      .worktree-box {
+        fill: none;
+        stroke-width: 1.5;
+        stroke-dasharray: 5 3;
+        rx: 4;
+      }
+      .wt-red { stroke: var(--red); }
+      .wt-orange { stroke: var(--orange); }
+      .wt-yellow { stroke: var(--yellow); }
+
+      /* ── Role circles ── */
+      .role-dir { fill: var(--fg); }
+      .role-act { fill: var(--white); opacity: 0.8; }
+      .role-crit { fill: var(--fg-dim); }
+
+      /* ── Merge arrow ── */
+      .merge-arrow {
+        stroke-width: 2;
+        fill: none;
+      }
+      .merge-arrow-red { stroke: var(--red); }
+      .merge-arrow-orange { stroke: var(--orange); }
+      .merge-arrow-yellow { stroke: var(--yellow); }
+
+      /* ── Main branch bar ── */
+      .main-bar {
+        fill: var(--branch-bar);
+        stroke: var(--fg);
+        stroke-width: 1.5;
+        rx: 4;
+      }
+
+      /* ── Checkmark ── */
+      .checkmark {
+        fill: none;
+        stroke: var(--green);
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      /* ── Badge ── */
+      .badge-bg {
+        fill: var(--green);
+        rx: 10;
+      }
+
+      /* ── Flow arrows ── */
+      .flow-arrow {
+        fill: none;
+        stroke: var(--fg-muted);
+        stroke-width: 1;
+        marker-end: url(#arrowhead);
+      }
+
+      /* ══════════════════════════════════════════
+         ANIMATIONS — 20s loop
+         ══════════════════════════════════════════ */
+
+      /* -- Phase 1: Backlog dots appear (0-2s) -- */
+      .dots-group {
+        opacity: 0;
+        animation: fadeIn 0.3s ease forwards;
+      }
+      .dot-d0 { animation-delay: 0.0s; }
+      .dot-d1 { animation-delay: 0.15s; }
+      .dot-d2 { animation-delay: 0.3s; }
+      .dot-d3 { animation-delay: 0.45s; }
+      .dot-d4 { animation-delay: 0.6s; }
+      .dot-d5 { animation-delay: 0.75s; }
+      .dot-d6 { animation-delay: 0.9s; }
+      .dot-d7 { animation-delay: 1.05s; }
+      .dot-d8 { animation-delay: 1.2s; }
+
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+
+      /* -- Phase 2: Batching label (2-4s) -- */
+      .batching-label {
+        opacity: 0;
+        animation: batchAppear 20s ease infinite;
+      }
+      @keyframes batchAppear {
+        0%, 9% { opacity: 0; }
+        10%, 90% { opacity: 1; }
+        95%, 100% { opacity: 0; }
+      }
+
+      /* -- Sorted dots in wave groups (2-4s) -- */
+      .sorted-dots {
+        opacity: 0;
+        animation: sortedAppear 20s ease infinite;
+      }
+      @keyframes sortedAppear {
+        0%, 12% { opacity: 0; }
+        15%, 85% { opacity: 1; }
+        90%, 100% { opacity: 0; }
+      }
+
+      /* -- Backlog dots fade as sorted ones appear -- */
+      .backlog-dots-group {
+        animation: backlogFade 20s ease infinite;
+      }
+      @keyframes backlogFade {
+        0%, 8% { opacity: 1; }
+        15%, 85% { opacity: 0.2; }
+        90%, 100% { opacity: 1; }
+      }
+
+      /* -- Wave 1 worktree (4-8s) -- */
+      .wave1-box {
+        opacity: 0;
+        animation: wave1Box 20s ease infinite;
+      }
+      @keyframes wave1Box {
+        0%, 18% { opacity: 0; }
+        22%, 48% { opacity: 1; }
+        52%, 100% { opacity: 0.3; }
+      }
+
+      /* -- Wave 1 roles (4-8s) -- */
+      .wave1-roles {
+        opacity: 0;
+        animation: wave1Roles 20s ease infinite;
+      }
+      @keyframes wave1Roles {
+        0%, 20% { opacity: 0; }
+        24%, 46% { opacity: 1; }
+        50%, 100% { opacity: 0.2; }
+      }
+
+      /* -- Wave 1 actor pulse (5-7s) -- */
+      .wave1-actor-pulse {
+        animation: actorPulse1 20s ease infinite;
+      }
+      @keyframes actorPulse1 {
+        0%, 24% { opacity: 0.8; r: 8; }
+        28% { opacity: 1; r: 10; }
+        32% { opacity: 0.8; r: 8; }
+        36% { opacity: 1; r: 10; }
+        38%, 100% { opacity: 0.8; r: 8; }
+      }
+
+      /* -- Wave 1 checkmark (7-8s) -- */
+      .wave1-check {
+        opacity: 0;
+        animation: wave1Check 20s ease infinite;
+      }
+      @keyframes wave1Check {
+        0%, 36% { opacity: 0; }
+        40%, 90% { opacity: 1; }
+        95%, 100% { opacity: 0; }
+      }
+
+      /* -- Wave 1 merge arrow (8-10s) -- */
+      .wave1-merge {
+        opacity: 0;
+        animation: wave1Merge 20s ease infinite;
+      }
+      @keyframes wave1Merge {
+        0%, 40% { opacity: 0; }
+        44%, 85% { opacity: 1; }
+        90%, 100% { opacity: 0; }
+      }
+
+      /* -- Wave 2 worktree (6-12s) -- */
+      .wave2-box {
+        opacity: 0;
+        animation: wave2Box 20s ease infinite;
+      }
+      @keyframes wave2Box {
+        0%, 28% { opacity: 0; }
+        32%, 58% { opacity: 1; }
+        62%, 100% { opacity: 0.3; }
+      }
+
+      .wave2-roles {
+        opacity: 0;
+        animation: wave2Roles 20s ease infinite;
+      }
+      @keyframes wave2Roles {
+        0%, 30% { opacity: 0; }
+        34%, 56% { opacity: 1; }
+        60%, 100% { opacity: 0.2; }
+      }
+
+      .wave2-actor-pulse {
+        animation: actorPulse2 20s ease infinite;
+      }
+      @keyframes actorPulse2 {
+        0%, 36% { opacity: 0.8; }
+        40% { opacity: 1; }
+        44% { opacity: 0.8; }
+        48% { opacity: 1; }
+        50%, 100% { opacity: 0.8; }
+      }
+
+      .wave2-check {
+        opacity: 0;
+        animation: wave2Check 20s ease infinite;
+      }
+      @keyframes wave2Check {
+        0%, 50% { opacity: 0; }
+        54%, 85% { opacity: 1; }
+        90%, 100% { opacity: 0; }
+      }
+
+      .wave2-merge {
+        opacity: 0;
+        animation: wave2Merge 20s ease infinite;
+      }
+      @keyframes wave2Merge {
+        0%, 52% { opacity: 0; }
+        56%, 85% { opacity: 1; }
+        90%, 100% { opacity: 0; }
+      }
+
+      /* -- Wave 3 worktree (8-16s) -- */
+      .wave3-box {
+        opacity: 0;
+        animation: wave3Box 20s ease infinite;
+      }
+      @keyframes wave3Box {
+        0%, 38% { opacity: 0; }
+        42%, 72% { opacity: 1; }
+        76%, 100% { opacity: 0.3; }
+      }
+
+      .wave3-roles {
+        opacity: 0;
+        animation: wave3Roles 20s ease infinite;
+      }
+      @keyframes wave3Roles {
+        0%, 40% { opacity: 0; }
+        44%, 70% { opacity: 1; }
+        74%, 100% { opacity: 0.2; }
+      }
+
+      .wave3-actor-pulse {
+        animation: actorPulse3 20s ease infinite;
+      }
+      @keyframes actorPulse3 {
+        0%, 50% { opacity: 0.8; }
+        54% { opacity: 1; }
+        58% { opacity: 0.8; }
+        62% { opacity: 1; }
+        64%, 100% { opacity: 0.8; }
+      }
+
+      .wave3-check {
+        opacity: 0;
+        animation: wave3Check 20s ease infinite;
+      }
+      @keyframes wave3Check {
+        0%, 64% { opacity: 0; }
+        68%, 85% { opacity: 1; }
+        90%, 100% { opacity: 0; }
+      }
+
+      .wave3-merge {
+        opacity: 0;
+        animation: wave3Merge 20s ease infinite;
+      }
+      @keyframes wave3Merge {
+        0%, 66% { opacity: 0; }
+        70%, 85% { opacity: 1; }
+        90%, 100% { opacity: 0; }
+      }
+
+      /* -- Main bar merge indicators -- */
+      .merge-dot-1 {
+        opacity: 0;
+        animation: mergeDot1 20s ease infinite;
+      }
+      @keyframes mergeDot1 {
+        0%, 44% { opacity: 0; }
+        48%, 85% { opacity: 1; }
+        90%, 100% { opacity: 0; }
+      }
+      .merge-dot-2 {
+        opacity: 0;
+        animation: mergeDot2 20s ease infinite;
+      }
+      @keyframes mergeDot2 {
+        0%, 56% { opacity: 0; }
+        60%, 85% { opacity: 1; }
+        90%, 100% { opacity: 0; }
+      }
+      .merge-dot-3 {
+        opacity: 0;
+        animation: mergeDot3 20s ease infinite;
+      }
+      @keyframes mergeDot3 {
+        0%, 70% { opacity: 0; }
+        74%, 85% { opacity: 1; }
+        90%, 100% { opacity: 0; }
+      }
+
+      /* -- Pipeline Clean badge (16-18s) -- */
+      .pipeline-badge {
+        opacity: 0;
+        animation: pipelineBadge 20s ease infinite;
+      }
+      @keyframes pipelineBadge {
+        0%, 78% { opacity: 0; transform: scale(0.8); }
+        82% { opacity: 1; transform: scale(1.05); }
+        84%, 88% { opacity: 1; transform: scale(1); }
+        92%, 100% { opacity: 0; transform: scale(0.9); }
+      }
+
+      /* -- Global fade cycle for restart -- */
+      .scene {
+        animation: sceneFade 20s ease infinite;
+      }
+      @keyframes sceneFade {
+        0%, 2% { opacity: 0; }
+        5%, 88% { opacity: 1; }
+        95%, 100% { opacity: 0; }
+      }
+
+      /* -- Flow connectors from backlog to waves -- */
+      .connector {
+        opacity: 0;
+        animation: connectorShow 20s ease infinite;
+      }
+      @keyframes connectorShow {
+        0%, 14% { opacity: 0; }
+        18%, 85% { opacity: 0.6; }
+        90%, 100% { opacity: 0; }
+      }
+
+      /* -- Director dispatch animation -- */
+      .dispatch-arrow-1 {
+        stroke-dasharray: 20;
+        stroke-dashoffset: 20;
+        animation: dispatchDraw1 20s ease infinite;
+      }
+      @keyframes dispatchDraw1 {
+        0%, 22% { stroke-dashoffset: 20; }
+        28% { stroke-dashoffset: 0; }
+        46%, 100% { stroke-dashoffset: 0; }
+      }
+      .dispatch-arrow-2 {
+        stroke-dasharray: 20;
+        stroke-dashoffset: 20;
+        animation: dispatchDraw2 20s ease infinite;
+      }
+      @keyframes dispatchDraw2 {
+        0%, 32% { stroke-dashoffset: 20; }
+        38% { stroke-dashoffset: 0; }
+        56%, 100% { stroke-dashoffset: 0; }
+      }
+      .dispatch-arrow-3 {
+        stroke-dasharray: 20;
+        stroke-dashoffset: 20;
+        animation: dispatchDraw3 20s ease infinite;
+      }
+      @keyframes dispatchDraw3 {
+        0%, 42% { stroke-dashoffset: 20; }
+        48% { stroke-dashoffset: 0; }
+        70%, 100% { stroke-dashoffset: 0; }
+      }
+    </style>
+
+    <!-- Arrow marker -->
+    <marker id="arrowhead" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
+      <path d="M0,0 L6,2 L0,4" fill="var(--fg-muted)" />
+    </marker>
+    <marker id="arrowhead-red" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
+      <path d="M0,0 L6,2 L0,4" fill="var(--red)" />
+    </marker>
+    <marker id="arrowhead-orange" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
+      <path d="M0,0 L6,2 L0,4" fill="var(--orange)" />
+    </marker>
+    <marker id="arrowhead-yellow" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
+      <path d="M0,0 L6,2 L0,4" fill="var(--yellow)" />
+    </marker>
+    <marker id="arrowhead-green" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
+      <path d="M0,0 L6,2 L0,4" fill="var(--green)" />
+    </marker>
+  </defs>
+
+  <foreignObject x="0" y="0" width="800" height="500">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="width:800px;height:500px;position:relative;">
+      <!-- This foreignObject is used solely to enable CSS custom properties via :root -->
+    </div>
+  </foreignObject>
+
+  <!-- Background -->
+  <rect width="800" height="500" fill="var(--bg)" rx="8" />
+
+  <g class="scene">
+    <!-- ═══════════════════════════════════════
+         TITLE
+         ═══════════════════════════════════════ -->
+    <text x="400" y="24" text-anchor="middle" class="title">The Swarm -- Parallel Wave Execution</text>
+
+    <!-- ═══════════════════════════════════════
+         ISSUE BACKLOG BAR
+         ═══════════════════════════════════════ -->
+    <rect x="120" y="38" width="560" height="32" class="backlog-bar" />
+    <text x="140" y="58" class="section-label">Issue Backlog</text>
+
+    <!-- 9 issue dots in backlog -->
+    <g class="backlog-dots-group">
+      <circle cx="340" cy="54" r="5" class="dot-red dots-group dot-d0" />
+      <circle cx="358" cy="54" r="5" class="dot-red dots-group dot-d1" />
+      <circle cx="376" cy="54" r="5" class="dot-red dots-group dot-d2" />
+      <circle cx="400" cy="54" r="5" class="dot-orange dots-group dot-d3" />
+      <circle cx="418" cy="54" r="5" class="dot-orange dots-group dot-d4" />
+      <circle cx="436" cy="54" r="5" class="dot-orange dots-group dot-d5" />
+      <circle cx="460" cy="54" r="5" class="dot-yellow dots-group dot-d6" />
+      <circle cx="478" cy="54" r="5" class="dot-yellow dots-group dot-d7" />
+      <circle cx="496" cy="54" r="5" class="dot-yellow dots-group dot-d8" />
+    </g>
+
+    <!-- ═══════════════════════════════════════
+         INTELLIGENT BATCHING LABEL
+         ═══════════════════════════════════════ -->
+    <text x="400" y="90" text-anchor="middle" class="label batching-label" style="fill: var(--fg);">INTELLIGENT BATCHING</text>
+
+    <!-- Connectors from backlog to wave groups -->
+    <g class="connector">
+      <line x1="358" y1="70" x2="170" y2="118" style="stroke: var(--red); stroke-width: 0.8; stroke-dasharray: 3 2;" />
+      <line x1="418" y1="70" x2="400" y2="118" style="stroke: var(--orange); stroke-width: 0.8; stroke-dasharray: 3 2;" />
+      <line x1="478" y1="70" x2="630" y2="118" style="stroke: var(--yellow); stroke-width: 0.8; stroke-dasharray: 3 2;" />
+    </g>
+
+    <!-- Sorted dots in 3 wave groups -->
+    <g class="sorted-dots">
+      <!-- Wave 1 sorted dots -->
+      <text x="115" y="115" class="label-sm" style="fill: var(--red);">WAVE 1 (CRITICAL)</text>
+      <circle cx="130" cy="128" r="4" class="dot-red" />
+      <circle cx="144" cy="128" r="4" class="dot-red" />
+      <circle cx="158" cy="128" r="4" class="dot-red" />
+
+      <!-- Wave 2 sorted dots -->
+      <text x="352" y="115" class="label-sm" style="fill: var(--orange);">WAVE 2 (HIGH)</text>
+      <circle cx="363" cy="128" r="4" class="dot-orange" />
+      <circle cx="377" cy="128" r="4" class="dot-orange" />
+      <circle cx="391" cy="128" r="4" class="dot-orange" />
+
+      <!-- Wave 3 sorted dots -->
+      <text x="582" y="115" class="label-sm" style="fill: var(--yellow);">WAVE 3 (MEDIUM)</text>
+      <circle cx="597" cy="128" r="4" class="dot-yellow" />
+      <circle cx="611" cy="128" r="4" class="dot-yellow" />
+      <circle cx="625" cy="128" r="4" class="dot-yellow" />
+    </g>
+
+    <!-- ═══════════════════════════════════════
+         WAVE 1 — CRITICAL (RED)
+         ═══════════════════════════════════════ -->
+    <g class="wave1-box">
+      <rect x="60" y="145" width="210" height="130" class="worktree-box wt-red" />
+      <text x="72" y="160" class="label-sm" style="fill: var(--red);">.worktrees/wave-1</text>
+    </g>
+
+    <g class="wave1-roles">
+      <!-- Director -->
+      <circle cx="110" cy="195" r="8" class="role-dir" />
+      <text x="110" y="198" class="role-label" style="fill: var(--bg);">D</text>
+      <text x="110" y="213" class="label-sm" style="text-anchor: middle;">Director</text>
+
+      <!-- Arrow D -> A -->
+      <line x1="120" y1="195" x2="147" y2="195" class="dispatch-arrow-1" style="stroke: var(--fg-muted); stroke-width: 1;" marker-end="url(#arrowhead)" />
+
+      <!-- Actor -->
+      <circle cx="165" cy="195" r="8" class="role-act wave1-actor-pulse" />
+      <text x="165" y="198" class="role-label" style="fill: var(--bg);">A</text>
+      <text x="165" y="213" class="label-sm" style="text-anchor: middle;">Actor</text>
+
+      <!-- Arrow A -> C -->
+      <line x1="175" y1="195" x2="202" y2="195" style="stroke: var(--fg-muted); stroke-width: 1;" marker-end="url(#arrowhead)" />
+
+      <!-- Critic -->
+      <circle cx="220" cy="195" r="8" class="role-crit" />
+      <text x="220" y="198" class="role-label">C</text>
+      <text x="220" y="213" class="label-sm" style="text-anchor: middle;">Critic</text>
+    </g>
+
+    <!-- Wave 1 checkmark -->
+    <g class="wave1-check">
+      <circle cx="248" cy="252" r="8" fill="none" stroke="var(--green)" stroke-width="1.5" />
+      <polyline points="243,252 247,256 254,248" class="checkmark" stroke-width="1.8" />
+    </g>
+
+    <!-- Wave 1 merge arrow to main -->
+    <g class="wave1-merge">
+      <line x1="165" y1="275" x2="165" y2="416" style="stroke: var(--red); stroke-width: 1.5; stroke-dasharray: 4 3;" marker-end="url(#arrowhead-red)" />
+      <text x="175" y="360" class="label-sm" style="fill: var(--red);">merge</text>
+    </g>
+
+    <!-- ═══════════════════════════════════════
+         WAVE 2 — HIGH (ORANGE)
+         ═══════════════════════════════════════ -->
+    <g class="wave2-box">
+      <rect x="295" y="145" width="210" height="130" class="worktree-box wt-orange" />
+      <text x="307" y="160" class="label-sm" style="fill: var(--orange);">.worktrees/wave-2</text>
+    </g>
+
+    <g class="wave2-roles">
+      <!-- Director -->
+      <circle cx="345" cy="195" r="8" class="role-dir" />
+      <text x="345" y="198" class="role-label" style="fill: var(--bg);">D</text>
+      <text x="345" y="213" class="label-sm" style="text-anchor: middle;">Director</text>
+
+      <!-- Arrow D -> A -->
+      <line x1="355" y1="195" x2="382" y2="195" class="dispatch-arrow-2" style="stroke: var(--fg-muted); stroke-width: 1;" marker-end="url(#arrowhead)" />
+
+      <!-- Actor -->
+      <circle cx="400" cy="195" r="8" class="role-act wave2-actor-pulse" />
+      <text x="400" y="198" class="role-label" style="fill: var(--bg);">A</text>
+      <text x="400" y="213" class="label-sm" style="text-anchor: middle;">Actor</text>
+
+      <!-- Arrow A -> C -->
+      <line x1="410" y1="195" x2="437" y2="195" style="stroke: var(--fg-muted); stroke-width: 1;" marker-end="url(#arrowhead)" />
+
+      <!-- Critic -->
+      <circle cx="455" cy="195" r="8" class="role-crit" />
+      <text x="455" y="198" class="role-label">C</text>
+      <text x="455" y="213" class="label-sm" style="text-anchor: middle;">Critic</text>
+    </g>
+
+    <!-- Wave 2 checkmark -->
+    <g class="wave2-check">
+      <circle cx="483" cy="252" r="8" fill="none" stroke="var(--green)" stroke-width="1.5" />
+      <polyline points="478,252 482,256 489,248" class="checkmark" stroke-width="1.8" />
+    </g>
+
+    <!-- Wave 2 merge arrow to main -->
+    <g class="wave2-merge">
+      <line x1="400" y1="275" x2="400" y2="416" style="stroke: var(--orange); stroke-width: 1.5; stroke-dasharray: 4 3;" marker-end="url(#arrowhead-orange)" />
+      <text x="410" y="360" class="label-sm" style="fill: var(--orange);">merge</text>
+    </g>
+
+    <!-- ═══════════════════════════════════════
+         WAVE 3 — MEDIUM (YELLOW)
+         ═══════════════════════════════════════ -->
+    <g class="wave3-box">
+      <rect x="530" y="145" width="210" height="130" class="worktree-box wt-yellow" />
+      <text x="542" y="160" class="label-sm" style="fill: var(--yellow);">.worktrees/wave-3</text>
+    </g>
+
+    <g class="wave3-roles">
+      <!-- Director -->
+      <circle cx="580" cy="195" r="8" class="role-dir" />
+      <text x="580" y="198" class="role-label" style="fill: var(--bg);">D</text>
+      <text x="580" y="213" class="label-sm" style="text-anchor: middle;">Director</text>
+
+      <!-- Arrow D -> A -->
+      <line x1="590" y1="195" x2="617" y2="195" class="dispatch-arrow-3" style="stroke: var(--fg-muted); stroke-width: 1;" marker-end="url(#arrowhead)" />
+
+      <!-- Actor -->
+      <circle cx="635" cy="195" r="8" class="role-act wave3-actor-pulse" />
+      <text x="635" y="198" class="role-label" style="fill: var(--bg);">A</text>
+      <text x="635" y="213" class="label-sm" style="text-anchor: middle;">Actor</text>
+
+      <!-- Arrow A -> C -->
+      <line x1="645" y1="195" x2="672" y2="195" style="stroke: var(--fg-muted); stroke-width: 1;" marker-end="url(#arrowhead)" />
+
+      <!-- Critic -->
+      <circle cx="690" cy="195" r="8" class="role-crit" />
+      <text x="690" y="198" class="role-label">C</text>
+      <text x="690" y="213" class="label-sm" style="text-anchor: middle;">Critic</text>
+    </g>
+
+    <!-- Wave 3 checkmark -->
+    <g class="wave3-check">
+      <circle cx="718" cy="252" r="8" fill="none" stroke="var(--green)" stroke-width="1.5" />
+      <polyline points="713,252 717,256 724,248" class="checkmark" stroke-width="1.8" />
+    </g>
+
+    <!-- Wave 3 merge arrow to main -->
+    <g class="wave3-merge">
+      <line x1="635" y1="275" x2="635" y2="416" style="stroke: var(--yellow); stroke-width: 1.5; stroke-dasharray: 4 3;" marker-end="url(#arrowhead-yellow)" />
+      <text x="645" y="360" class="label-sm" style="fill: var(--yellow);">merge</text>
+    </g>
+
+    <!-- ═══════════════════════════════════════
+         TIMELINE BAR (visual overlap indicator)
+         ═══════════════════════════════════════ -->
+    <g>
+      <text x="60" y="310" class="label-sm">TIME</text>
+      <line x1="85" y1="307" x2="740" y2="307" style="stroke: var(--fg-muted); stroke-width: 0.5;" />
+
+      <!-- Wave 1 timeline bar -->
+      <g class="wave1-box">
+        <rect x="100" y="316" width="200" height="6" rx="3" style="fill: var(--red); opacity: 0.4;" />
+        <text x="100" y="334" class="label-sm" style="fill: var(--red);">W1</text>
+      </g>
+
+      <!-- Wave 2 timeline bar (overlaps with W1) -->
+      <g class="wave2-box">
+        <rect x="180" y="326" width="230" height="6" rx="3" style="fill: var(--orange); opacity: 0.4;" />
+        <text x="180" y="344" class="label-sm" style="fill: var(--orange);">W2</text>
+      </g>
+
+      <!-- Wave 3 timeline bar (overlaps with W2) -->
+      <g class="wave3-box">
+        <rect x="280" y="336" width="280" height="6" rx="3" style="fill: var(--yellow); opacity: 0.4;" />
+        <text x="280" y="354" class="label-sm" style="fill: var(--yellow);">W3</text>
+      </g>
+
+      <!-- Parallelism bracket -->
+      <text x="620" y="330" class="label-sm" style="fill: var(--fg);">parallel</text>
+    </g>
+
+    <!-- ═══════════════════════════════════════
+         MAIN BRANCH BAR
+         ═══════════════════════════════════════ -->
+    <rect x="60" y="420" width="680" height="28" class="main-bar" />
+    <text x="72" y="438" class="label-bright">main</text>
+
+    <!-- Git log dots on main -->
+    <circle cx="120" cy="434" r="3" style="fill: var(--fg-muted);" />
+    <circle cx="134" cy="434" r="3" style="fill: var(--fg-muted);" />
+    <circle cx="148" cy="434" r="3" style="fill: var(--fg-muted);" />
+
+    <!-- Merge commit indicators -->
+    <g class="merge-dot-1">
+      <circle cx="200" cy="434" r="5" style="fill: var(--red);" />
+      <text x="200" y="437" class="role-label" style="font-size: 6px; fill: var(--bg);">W1</text>
+    </g>
+    <g class="merge-dot-2">
+      <circle cx="400" cy="434" r="5" style="fill: var(--orange);" />
+      <text x="400" y="437" class="role-label" style="font-size: 6px; fill: var(--bg);">W2</text>
+    </g>
+    <g class="merge-dot-3">
+      <circle cx="600" cy="434" r="5" style="fill: var(--yellow);" />
+      <text x="600" y="437" class="role-label" style="font-size: 6px; fill: var(--bg);">W3</text>
+    </g>
+
+    <!-- ═══════════════════════════════════════
+         PIPELINE CLEAN BADGE
+         ═══════════════════════════════════════ -->
+    <g class="pipeline-badge">
+      <rect x="310" y="460" width="180" height="28" class="badge-bg" rx="14" />
+      <text x="400" y="478" class="badge-text">PIPELINE CLEAN</text>
+    </g>
+
+    <!-- ═══════════════════════════════════════
+         LEGEND (bottom-left, subtle)
+         ═══════════════════════════════════════ -->
+    <g style="opacity: 0.5;">
+      <circle cx="70" cy="480" r="4" class="role-dir" />
+      <text x="80" y="483" class="label-sm">Director</text>
+      <circle cx="130" cy="480" r="4" class="role-act" />
+      <text x="140" y="483" class="label-sm">Actor</text>
+      <circle cx="185" cy="480" r="4" class="role-crit" />
+      <text x="195" y="483" class="label-sm">Critic</text>
+    </g>
+  </g>
+</svg>

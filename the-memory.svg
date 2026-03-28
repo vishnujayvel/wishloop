@@ -1,0 +1,959 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 420" width="800" height="420">
+  <foreignObject width="800" height="420">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="width:800px;height:420px;position:relative;overflow:hidden;font-family:Menlo,Monaco,Consolas,monospace;background:#0d1117;color:#7ee787;">
+      <style>
+        /* ===== COLOR SCHEME ===== */
+        :root {
+          --bg: #0d1117;
+          --fg: #7ee787;
+          --fg-dim: #484f58;
+          --fg-muted: #8b949e;
+          --red: #f85149;
+          --green: #7ee787;
+          --yellow: #d29922;
+          --blue: #58a6ff;
+          --border: #30363d;
+          --card-bg: #161b22;
+        }
+
+        /* ===== LIGHT MODE ===== */
+        @media (prefers-color-scheme: light) {
+          :root {
+            --bg: #ffffff;
+            --fg: #1a7f37;
+            --fg-dim: #656d76;
+            --fg-muted: #6e7781;
+            --red: #cf222e;
+            --green: #1a7f37;
+            --yellow: #9a6700;
+            --blue: #0969da;
+            --border: #d0d7de;
+            --card-bg: #f6f8fa;
+          }
+        }
+
+        /* ===== REDUCED MOTION ===== */
+        @media (prefers-reduced-motion: reduce) {
+          *, *::before, *::after {
+            animation-duration: 0.01s !important;
+            animation-iteration-count: 1 !important;
+          }
+        }
+
+        /* ===== GLOBAL ===== */
+        .mem-root {
+          width: 800px;
+          height: 420px;
+          position: relative;
+          background: var(--bg);
+          color: var(--fg);
+          font-size: 10px;
+          line-height: 1.4;
+          box-sizing: border-box;
+        }
+        .mem-root * { box-sizing: border-box; }
+
+        /* ===== TITLE ===== */
+        .mem-title {
+          position: absolute;
+          top: 6px;
+          left: 0;
+          width: 100%;
+          text-align: center;
+          font-size: 9px;
+          letter-spacing: 2px;
+          text-transform: uppercase;
+          color: var(--fg-dim);
+          opacity: 0;
+          animation: fadeIn 0.5s 0.2s forwards;
+        }
+
+        /* ===== RUN BOXES ===== */
+        .run-box {
+          position: absolute;
+          top: 32px;
+          width: 140px;
+          height: 155px;
+          border: 1px solid var(--border);
+          border-radius: 4px;
+          background: var(--card-bg);
+          padding: 6px 8px;
+          opacity: 0;
+          overflow: hidden;
+        }
+        .run-box-1 { left: 16px; animation: runAppear 0.4s 0.3s forwards; }
+        .run-box-2 { left: 170px; animation: runAppear 0.4s 6.0s forwards; }
+        .run-box-3 { left: 324px; animation: runAppear 0.4s 11.0s forwards; }
+
+        .run-label {
+          font-size: 9px;
+          font-weight: bold;
+          color: var(--fg-muted);
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          margin-bottom: 4px;
+        }
+
+        /* Code lines inside run boxes */
+        .code-line {
+          font-size: 8px;
+          color: var(--fg-dim);
+          opacity: 0;
+          white-space: nowrap;
+          overflow: hidden;
+          height: 12px;
+        }
+        /* Run 1 code lines */
+        .run-box-1 .cl-1 { animation: typeIn 0.3s 0.7s forwards; }
+        .run-box-1 .cl-2 { animation: typeIn 0.3s 1.0s forwards; }
+        .run-box-1 .cl-3 { animation: typeIn 0.3s 1.3s forwards; }
+        .run-box-1 .cl-4 { animation: typeIn 0.3s 1.5s forwards; }
+
+        /* Run 2 code lines */
+        .run-box-2 .cl-1 { animation: typeIn 0.3s 6.4s forwards; }
+        .run-box-2 .cl-2 { animation: typeIn 0.3s 6.7s forwards; }
+        .run-box-2 .cl-3 { animation: typeIn 0.3s 7.0s forwards; }
+        .run-box-2 .cl-4 { animation: typeIn 0.3s 7.3s forwards; }
+
+        /* Run 3 code lines */
+        .run-box-3 .cl-1 { animation: typeIn 0.3s 11.4s forwards; }
+        .run-box-3 .cl-2 { animation: typeIn 0.3s 11.7s forwards; }
+        .run-box-3 .cl-3 { animation: typeIn 0.3s 12.0s forwards; }
+        .run-box-3 .cl-4 { animation: typeIn 0.3s 12.3s forwards; }
+
+        /* Bug flash (red) for Run 1 */
+        .bug-flash {
+          position: absolute;
+          bottom: 30px;
+          left: 8px;
+          right: 8px;
+          font-size: 8px;
+          color: var(--red);
+          opacity: 0;
+          padding: 2px 4px;
+          border: 1px solid var(--red);
+          border-radius: 2px;
+          background: rgba(248,81,73,0.1);
+        }
+        .run-box-1 .bug-flash {
+          animation: bugFlash 0.8s 1.8s forwards;
+        }
+
+        /* Fix indicator */
+        .fix-line {
+          position: absolute;
+          bottom: 8px;
+          left: 8px;
+          font-size: 8px;
+          color: var(--green);
+          opacity: 0;
+        }
+        .run-box-1 .fix-line { animation: fadeIn 0.3s 2.5s forwards; }
+
+        /* Green pass for Run 2 and 3 */
+        .pass-badge {
+          position: absolute;
+          bottom: 8px;
+          left: 8px;
+          right: 8px;
+          font-size: 8px;
+          color: var(--green);
+          opacity: 0;
+          padding: 2px 4px;
+          border: 1px solid var(--green);
+          border-radius: 2px;
+          background: rgba(126,231,135,0.08);
+          text-align: center;
+        }
+        .run-box-2 .pass-badge { animation: fadeIn 0.3s 7.8s forwards; }
+        .run-box-3 .pass-badge { animation: fadeIn 0.3s 12.8s forwards; }
+
+        /* Injection lines (dotted) into Run 2 and Run 3 */
+        .inject-line {
+          position: absolute;
+          height: 1px;
+          border-top: 1px dashed var(--blue);
+          opacity: 0;
+        }
+        .inject-1 {
+          top: 55px;
+          left: 490px;
+          width: 0;
+          animation: injectGrow 0.6s 5.5s forwards;
+        }
+        .inject-2 {
+          top: 65px;
+          left: 490px;
+          width: 0;
+          animation: injectGrow 0.6s 10.5s forwards;
+        }
+        .inject-arrow {
+          position: absolute;
+          top: 50px;
+          font-size: 8px;
+          color: var(--blue);
+          opacity: 0;
+        }
+        .inject-arrow-1 { left: 167px; animation: fadeIn 0.2s 6.1s forwards; }
+        .inject-arrow-2 { left: 321px; animation: fadeIn 0.2s 11.1s forwards; }
+
+        /* Inject label */
+        .inject-label {
+          position: absolute;
+          font-size: 7px;
+          color: var(--blue);
+          opacity: 0;
+          white-space: nowrap;
+        }
+        .inject-label-1 { top: 42px; left: 172px; animation: fadeIn 0.3s 5.6s forwards, fadeOut 0.3s 6.8s forwards; }
+        .inject-label-2 { top: 42px; left: 326px; animation: fadeIn 0.3s 10.6s forwards, fadeOut 0.3s 11.8s forwards; }
+
+        /* ===== FLOW ARROWS (Run -> Solutions) ===== */
+        .flow-arrow {
+          position: absolute;
+          height: 1px;
+          background: var(--fg);
+          opacity: 0;
+        }
+        .flow-dot {
+          position: absolute;
+          width: 4px;
+          height: 4px;
+          border-radius: 50%;
+          background: var(--fg);
+          opacity: 0;
+        }
+        /* Flow from Run 1 */
+        .flow-1 {
+          top: 110px;
+          left: 158px;
+          width: 0;
+          animation: flowGrow 0.5s 3.2s forwards;
+        }
+        .flow-dot-1 {
+          top: 108px;
+          left: 158px;
+          animation: flowDotMove1 0.5s 3.2s forwards;
+        }
+        /* Flow from Run 2 */
+        .flow-2 {
+          top: 120px;
+          left: 312px;
+          width: 0;
+          animation: flowGrow2 0.5s 8.5s forwards;
+        }
+        .flow-dot-2 {
+          top: 118px;
+          left: 312px;
+          animation: flowDotMove2 0.5s 8.5s forwards;
+        }
+        /* Flow from Run 3 */
+        .flow-3 {
+          top: 130px;
+          left: 466px;
+          width: 0;
+          animation: flowGrow3 0.3s 13.5s forwards;
+        }
+        .flow-dot-3 {
+          top: 128px;
+          left: 466px;
+          animation: flowDotMove3 0.3s 13.5s forwards;
+        }
+
+        /* ===== SOLUTIONS STORE ===== */
+        .solutions-box {
+          position: absolute;
+          top: 32px;
+          left: 500px;
+          width: 284px;
+          height: 185px;
+          border: 1px solid var(--border);
+          border-radius: 4px;
+          background: var(--card-bg);
+          padding: 6px 10px;
+          opacity: 0;
+          animation: fadeIn 0.5s 0.5s forwards;
+        }
+        .solutions-title {
+          font-size: 9px;
+          color: var(--fg-muted);
+          margin-bottom: 6px;
+          letter-spacing: 0.5px;
+        }
+        .solutions-title span { color: var(--yellow); }
+
+        .sol-entry {
+          font-size: 8px;
+          padding: 4px 6px;
+          margin-bottom: 3px;
+          border-left: 2px solid var(--border);
+          opacity: 0;
+          background: rgba(126,231,135,0.03);
+          border-radius: 0 2px 2px 0;
+        }
+        .sol-entry-1 {
+          border-left-color: var(--yellow);
+          animation: slideIn 0.4s 3.5s forwards;
+        }
+        .sol-entry-2 {
+          border-left-color: var(--blue);
+          animation: slideIn 0.4s 9.0s forwards;
+        }
+        .sol-entry-3 {
+          border-left-color: var(--red);
+          animation: slideIn 0.4s 14.0s forwards;
+        }
+        .sol-cat {
+          font-size: 7px;
+          color: var(--fg-dim);
+          display: inline-block;
+          margin-left: 6px;
+        }
+        .sol-conf {
+          float: right;
+          font-size: 7px;
+          color: var(--fg-muted);
+        }
+        .sol-text { color: var(--fg); }
+
+        /* Entry counter */
+        .sol-count {
+          position: absolute;
+          bottom: 8px;
+          right: 10px;
+          font-size: 8px;
+          color: var(--fg-dim);
+        }
+        .count-0 { animation: fadeIn 0.1s 0.5s forwards, fadeOut 0.1s 3.5s forwards; }
+        .count-1 { opacity: 0; animation: fadeIn 0.1s 3.6s forwards, fadeOut 0.1s 9.0s forwards; }
+        .count-2 { opacity: 0; animation: fadeIn 0.1s 9.1s forwards, fadeOut 0.1s 14.0s forwards; }
+        .count-3 { opacity: 0; animation: fadeIn 0.1s 14.1s forwards; }
+
+        /* ===== CATEGORY BARS (bottom) ===== */
+        .cat-section {
+          position: absolute;
+          bottom: 16px;
+          left: 16px;
+          right: 16px;
+          height: 90px;
+          display: flex;
+          gap: 20px;
+          justify-content: center;
+        }
+        .cat-col {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          width: 120px;
+        }
+        .cat-label {
+          font-size: 8px;
+          color: var(--fg-dim);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-top: 4px;
+        }
+        .cat-bar-wrap {
+          width: 40px;
+          height: 60px;
+          border: 1px solid var(--border);
+          border-radius: 2px;
+          position: relative;
+          overflow: hidden;
+          background: var(--bg);
+        }
+        .cat-bar {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          border-radius: 1px;
+          transition: height 0.5s;
+        }
+
+        /* Security bar */
+        .bar-security {
+          background: var(--red);
+          opacity: 0.7;
+          height: 0;
+          animation: barSecurity 20s linear infinite;
+        }
+        /* Performance bar */
+        .bar-performance {
+          background: var(--yellow);
+          opacity: 0.7;
+          height: 0;
+          animation: barPerformance 20s linear infinite;
+        }
+        /* Architecture bar (no entry this cycle, stays empty) */
+        .bar-architecture {
+          background: var(--blue);
+          opacity: 0.7;
+          height: 0;
+        }
+        /* Testing bar */
+        .bar-testing {
+          background: var(--green);
+          opacity: 0.7;
+          height: 0;
+          animation: barTesting 20s linear infinite;
+        }
+
+        @keyframes barPerformance {
+          0%, 14% { height: 0; }
+          17%, 99% { height: 20px; }
+          100% { height: 0; }
+        }
+        @keyframes barTesting {
+          0%, 44% { height: 0; }
+          47%, 99% { height: 20px; }
+          100% { height: 0; }
+        }
+        @keyframes barSecurity {
+          0%, 69% { height: 0; }
+          72%, 99% { height: 20px; }
+          100% { height: 0; }
+        }
+
+        /* ===== DIVIDER LINE ===== */
+        .divider {
+          position: absolute;
+          bottom: 110px;
+          left: 16px;
+          right: 16px;
+          height: 1px;
+          background: var(--border);
+          opacity: 0;
+          animation: fadeIn 0.3s 0.5s forwards;
+        }
+        .divider-label {
+          position: absolute;
+          bottom: 113px;
+          left: 20px;
+          font-size: 7px;
+          color: var(--fg-dim);
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          opacity: 0;
+          animation: fadeIn 0.3s 0.5s forwards;
+        }
+
+        /* ===== SUMMARY ===== */
+        .summary {
+          position: absolute;
+          top: 224px;
+          left: 500px;
+          width: 284px;
+          text-align: center;
+          font-size: 10px;
+          color: var(--green);
+          opacity: 0;
+          animation: summaryAppear 20s linear infinite;
+        }
+        .summary-line2 {
+          font-size: 8px;
+          color: var(--fg-dim);
+          margin-top: 2px;
+        }
+
+        @keyframes summaryAppear {
+          0%, 79% { opacity: 0; }
+          82%, 89% { opacity: 1; }
+          92%, 100% { opacity: 0; }
+        }
+
+        /* ===== FULL LOOP RESET ===== */
+        .mem-root {
+          animation: fullLoop 20s linear infinite;
+        }
+        @keyframes fullLoop {
+          0% { opacity: 1; }
+          90% { opacity: 1; }
+          95% { opacity: 0; }
+          100% { opacity: 0; }
+        }
+
+        /* All child animations need to loop too */
+        .run-box-1, .run-box-2, .run-box-3,
+        .solutions-box, .divider, .divider-label,
+        .mem-title,
+        .inject-line, .inject-arrow, .inject-label,
+        .flow-arrow, .flow-dot,
+        .sol-entry, .sol-count,
+        .code-line, .bug-flash, .fix-line, .pass-badge,
+        .summary {
+          animation-iteration-count: infinite;
+        }
+
+        /* Override iteration count for elements with multiple animations */
+        .inject-label-1, .inject-label-2,
+        .count-0, .count-1, .count-2, .count-3 {
+          animation-iteration-count: infinite;
+        }
+
+        /* Reset all animations on the 20s loop */
+        .run-box { animation-duration: 20s; animation-timing-function: linear; }
+        .run-box-1 { animation: run1Loop 20s linear infinite; }
+        .run-box-2 { animation: run2Loop 20s linear infinite; }
+        .run-box-3 { animation: run3Loop 20s linear infinite; }
+
+        @keyframes run1Loop {
+          0%, 1% { opacity: 0; transform: translateY(4px); }
+          2%, 90% { opacity: 1; transform: translateY(0); }
+          95%, 100% { opacity: 0; transform: translateY(0); }
+        }
+        @keyframes run2Loop {
+          0%, 29% { opacity: 0; transform: translateY(4px); }
+          32%, 90% { opacity: 1; transform: translateY(0); }
+          95%, 100% { opacity: 0; transform: translateY(0); }
+        }
+        @keyframes run3Loop {
+          0%, 54% { opacity: 0; transform: translateY(4px); }
+          57%, 90% { opacity: 1; transform: translateY(0); }
+          95%, 100% { opacity: 0; transform: translateY(0); }
+        }
+
+        /* Code lines looping */
+        .run-box-1 .cl-1 { animation: codeLine 20s linear infinite; }
+        .run-box-1 .cl-2 { animation: codeLine2 20s linear infinite; }
+        .run-box-1 .cl-3 { animation: codeLine3 20s linear infinite; }
+        .run-box-1 .cl-4 { animation: codeLine4 20s linear infinite; }
+
+        @keyframes codeLine  { 0%,3%{opacity:0} 4%,90%{opacity:1} 95%,100%{opacity:0} }
+        @keyframes codeLine2 { 0%,5%{opacity:0} 6%,90%{opacity:1} 95%,100%{opacity:0} }
+        @keyframes codeLine3 { 0%,6%{opacity:0} 7%,90%{opacity:1} 95%,100%{opacity:0} }
+        @keyframes codeLine4 { 0%,7%{opacity:0} 8%,90%{opacity:1} 95%,100%{opacity:0} }
+
+        .run-box-2 .cl-1 { animation: r2cl1 20s linear infinite; }
+        .run-box-2 .cl-2 { animation: r2cl2 20s linear infinite; }
+        .run-box-2 .cl-3 { animation: r2cl3 20s linear infinite; }
+        .run-box-2 .cl-4 { animation: r2cl4 20s linear infinite; }
+
+        @keyframes r2cl1 { 0%,32%{opacity:0} 33%,90%{opacity:1} 95%,100%{opacity:0} }
+        @keyframes r2cl2 { 0%,34%{opacity:0} 35%,90%{opacity:1} 95%,100%{opacity:0} }
+        @keyframes r2cl3 { 0%,35%{opacity:0} 36%,90%{opacity:1} 95%,100%{opacity:0} }
+        @keyframes r2cl4 { 0%,36%{opacity:0} 37%,90%{opacity:1} 95%,100%{opacity:0} }
+
+        .run-box-3 .cl-1 { animation: r3cl1 20s linear infinite; }
+        .run-box-3 .cl-2 { animation: r3cl2 20s linear infinite; }
+        .run-box-3 .cl-3 { animation: r3cl3 20s linear infinite; }
+        .run-box-3 .cl-4 { animation: r3cl4 20s linear infinite; }
+
+        @keyframes r3cl1 { 0%,57%{opacity:0} 58%,90%{opacity:1} 95%,100%{opacity:0} }
+        @keyframes r3cl2 { 0%,59%{opacity:0} 60%,90%{opacity:1} 95%,100%{opacity:0} }
+        @keyframes r3cl3 { 0%,60%{opacity:0} 61%,90%{opacity:1} 95%,100%{opacity:0} }
+        @keyframes r3cl4 { 0%,61%{opacity:0} 62%,90%{opacity:1} 95%,100%{opacity:0} }
+
+        /* Bug flash loop */
+        .run-box-1 .bug-flash {
+          animation: bugLoop 20s linear infinite;
+        }
+        @keyframes bugLoop {
+          0%,8% { opacity:0; }
+          9% { opacity:1; background:rgba(248,81,73,0.25); }
+          10% { opacity:1; background:rgba(248,81,73,0.1); }
+          12%,90% { opacity:1; background:rgba(248,81,73,0.1); }
+          95%,100% { opacity:0; }
+        }
+
+        /* Fix line loop */
+        .run-box-1 .fix-line {
+          animation: fixLoop 20s linear infinite;
+        }
+        @keyframes fixLoop {
+          0%,12% { opacity:0; } 13%,90% { opacity:1; } 95%,100% { opacity:0; }
+        }
+
+        /* Pass badges loop */
+        .run-box-2 .pass-badge { animation: pass2Loop 20s linear infinite; }
+        .run-box-3 .pass-badge { animation: pass3Loop 20s linear infinite; }
+        @keyframes pass2Loop { 0%,39% { opacity:0; } 40%,90% { opacity:1; } 95%,100% { opacity:0; } }
+        @keyframes pass3Loop { 0%,64% { opacity:0; } 65%,90% { opacity:1; } 95%,100% { opacity:0; } }
+
+        /* Solutions entries loop */
+        .sol-entry-1 { animation: sol1Loop 20s linear infinite; }
+        .sol-entry-2 { animation: sol2Loop 20s linear infinite; }
+        .sol-entry-3 { animation: sol3Loop 20s linear infinite; }
+        @keyframes sol1Loop {
+          0%,16% { opacity:0; transform:translateX(-8px); }
+          18%,90% { opacity:1; transform:translateX(0); }
+          95%,100% { opacity:0; transform:translateX(0); }
+        }
+        @keyframes sol2Loop {
+          0%,44% { opacity:0; transform:translateX(-8px); }
+          46%,90% { opacity:1; transform:translateX(0); }
+          95%,100% { opacity:0; transform:translateX(0); }
+        }
+        @keyframes sol3Loop {
+          0%,69% { opacity:0; transform:translateX(-8px); }
+          71%,90% { opacity:1; transform:translateX(0); }
+          95%,100% { opacity:0; transform:translateX(0); }
+        }
+
+        /* Solutions counter loop */
+        .count-0 { animation: cnt0Loop 20s linear infinite; }
+        .count-1 { animation: cnt1Loop 20s linear infinite; }
+        .count-2 { animation: cnt2Loop 20s linear infinite; }
+        .count-3 { animation: cnt3Loop 20s linear infinite; }
+        @keyframes cnt0Loop { 0%,2% { opacity:0; } 3%,16% { opacity:1; } 17%,100% { opacity:0; } }
+        @keyframes cnt1Loop { 0%,17% { opacity:0; } 18%,44% { opacity:1; } 45%,100% { opacity:0; } }
+        @keyframes cnt2Loop { 0%,45% { opacity:0; } 46%,69% { opacity:1; } 70%,100% { opacity:0; } }
+        @keyframes cnt3Loop { 0%,70% { opacity:0; } 71%,90% { opacity:1; } 95%,100% { opacity:0; } }
+
+        /* Flow arrows loop */
+        .flow-1 { animation: flow1Loop 20s linear infinite; }
+        .flow-2 { animation: flow2Loop 20s linear infinite; }
+        .flow-3 { animation: flow3Loop 20s linear infinite; }
+
+        @keyframes flow1Loop {
+          0%,15% { opacity:0; width:0; }
+          16% { opacity:0.8; width:0; }
+          18% { opacity:0.8; width:60px; }
+          20%,90% { opacity:0.3; width:60px; }
+          95%,100% { opacity:0; width:0; }
+        }
+        @keyframes flow2Loop {
+          0%,42% { opacity:0; width:0; }
+          43% { opacity:0.8; width:0; }
+          45% { opacity:0.8; width:60px; }
+          47%,90% { opacity:0.3; width:60px; }
+          95%,100% { opacity:0; width:0; }
+        }
+        @keyframes flow3Loop {
+          0%,67% { opacity:0; width:0; }
+          68% { opacity:0.8; width:0; }
+          70% { opacity:0.8; width:34px; }
+          72%,90% { opacity:0.3; width:34px; }
+          95%,100% { opacity:0; width:0; }
+        }
+
+        /* Flow dots loop */
+        .flow-dot-1 { animation: fd1Loop 20s linear infinite; }
+        .flow-dot-2 { animation: fd2Loop 20s linear infinite; }
+        .flow-dot-3 { animation: fd3Loop 20s linear infinite; }
+
+        @keyframes fd1Loop {
+          0%,15% { opacity:0; left:158px; }
+          16% { opacity:1; left:158px; }
+          18% { opacity:1; left:218px; }
+          19%,100% { opacity:0; left:218px; }
+        }
+        @keyframes fd2Loop {
+          0%,42% { opacity:0; left:312px; }
+          43% { opacity:1; left:312px; }
+          45% { opacity:1; left:372px; }
+          46%,100% { opacity:0; left:372px; }
+        }
+        @keyframes fd3Loop {
+          0%,67% { opacity:0; left:466px; }
+          68% { opacity:1; left:466px; }
+          70% { opacity:1; left:498px; }
+          71%,100% { opacity:0; left:498px; }
+        }
+
+        /* Inject lines loop */
+        .inject-1 { animation: inj1Loop 20s linear infinite; }
+        .inject-2 { animation: inj2Loop 20s linear infinite; }
+
+        @keyframes inj1Loop {
+          0%,27% { opacity:0; width:0; left:490px; }
+          28% { opacity:0.7; width:0; left:310px; }
+          30% { opacity:0.7; width:180px; left:310px; }
+          31% { opacity:0.7; width:0; left:310px; }
+          32%,100% { opacity:0; width:0; }
+        }
+        @keyframes inj2Loop {
+          0%,52% { opacity:0; width:0; left:490px; }
+          53% { opacity:0.7; width:0; left:464px; }
+          55% { opacity:0.7; width:36px; left:464px; }
+          56% { opacity:0.7; width:0; left:464px; }
+          57%,100% { opacity:0; width:0; }
+        }
+
+        /* Inject arrows loop */
+        .inject-arrow-1 { animation: ia1Loop 20s linear infinite; }
+        .inject-arrow-2 { animation: ia2Loop 20s linear infinite; }
+
+        @keyframes ia1Loop {
+          0%,27% { opacity:0; } 28%,32% { opacity:1; } 33%,100% { opacity:0; }
+        }
+        @keyframes ia2Loop {
+          0%,52% { opacity:0; } 53%,57% { opacity:1; } 58%,100% { opacity:0; }
+        }
+
+        /* Inject labels loop */
+        .inject-label-1 { animation: il1Loop 20s linear infinite; }
+        .inject-label-2 { animation: il2Loop 20s linear infinite; }
+
+        @keyframes il1Loop {
+          0%,27% { opacity:0; } 28%,32% { opacity:1; } 33%,100% { opacity:0; }
+        }
+        @keyframes il2Loop {
+          0%,52% { opacity:0; } 53%,57% { opacity:1; } 58%,100% { opacity:0; }
+        }
+
+        /* Solutions box and title */
+        .solutions-box { animation: solBoxLoop 20s linear infinite; }
+        @keyframes solBoxLoop {
+          0%,2% { opacity:0; } 3%,90% { opacity:1; } 95%,100% { opacity:0; }
+        }
+
+        /* Title */
+        .mem-title { animation: titleLoop 20s linear infinite; }
+        @keyframes titleLoop {
+          0%,1% { opacity:0; } 2%,90% { opacity:1; } 95%,100% { opacity:0; }
+        }
+
+        /* Divider */
+        .divider { animation: divLoop 20s linear infinite; }
+        .divider-label { animation: divLoop 20s linear infinite; }
+        @keyframes divLoop {
+          0%,2% { opacity:0; } 3%,90% { opacity:1; } 95%,100% { opacity:0; }
+        }
+
+        /* ===== BASIC KEYFRAMES ===== */
+        @keyframes fadeIn {
+          to { opacity: 1; }
+        }
+        @keyframes fadeOut {
+          to { opacity: 0; }
+        }
+        @keyframes runAppear {
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes typeIn {
+          to { opacity: 1; }
+        }
+        @keyframes bugFlash {
+          0% { opacity: 0; }
+          20% { opacity: 1; background: rgba(248,81,73,0.3); }
+          100% { opacity: 1; background: rgba(248,81,73,0.1); }
+        }
+        @keyframes slideIn {
+          from { opacity: 0; transform: translateX(-8px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes injectGrow {
+          to { opacity: 0.7; width: 180px; }
+        }
+        @keyframes flowGrow {
+          to { opacity: 0.8; width: 60px; }
+        }
+        @keyframes flowGrow2 {
+          to { opacity: 0.8; width: 60px; }
+        }
+        @keyframes flowGrow3 {
+          to { opacity: 0.8; width: 34px; }
+        }
+
+        /* Dashed animated stroke effect on flow connectors */
+        .flow-connector {
+          position: absolute;
+          height: 0;
+          border-top: 1px dashed var(--fg);
+          opacity: 0;
+        }
+        .fc-1 {
+          top: 110px; left: 158px; width: 342px;
+          animation: fc1Loop 20s linear infinite;
+        }
+        .fc-2 {
+          top: 120px; left: 312px; width: 188px;
+          animation: fc2Loop 20s linear infinite;
+        }
+        .fc-3 {
+          top: 130px; left: 466px; width: 34px;
+          animation: fc3Loop 20s linear infinite;
+        }
+
+        @keyframes fc1Loop {
+          0%,15% { opacity:0; } 16%,18% { opacity:0.6; } 20%,90% { opacity:0.15; } 95%,100% { opacity:0; }
+        }
+        @keyframes fc2Loop {
+          0%,42% { opacity:0; } 43%,45% { opacity:0.6; } 47%,90% { opacity:0.15; } 95%,100% { opacity:0; }
+        }
+        @keyframes fc3Loop {
+          0%,67% { opacity:0; } 68%,70% { opacity:0.6; } 72%,90% { opacity:0.15; } 95%,100% { opacity:0; }
+        }
+
+        /* Arrow head indicators */
+        .arrow-head {
+          position: absolute;
+          font-size: 8px;
+          color: var(--fg);
+          opacity: 0;
+        }
+        .ah-1 { top: 106px; left: 496px; animation: fc1Loop 20s linear infinite; }
+        .ah-2 { top: 116px; left: 496px; animation: fc2Loop 20s linear infinite; }
+        .ah-3 { top: 126px; left: 496px; animation: fc3Loop 20s linear infinite; }
+
+        /* Inject reverse arrows from solutions to runs */
+        .inject-reverse {
+          position: absolute;
+          border-top: 1px dashed var(--blue);
+          height: 0;
+          opacity: 0;
+        }
+        .ir-1 {
+          top: 70px;
+          left: 170px;
+          width: 330px;
+          animation: ir1Loop 20s linear infinite;
+        }
+        .ir-2 {
+          top: 80px;
+          left: 324px;
+          width: 176px;
+          animation: ir2Loop 20s linear infinite;
+        }
+
+        @keyframes ir1Loop {
+          0%,27% { opacity:0; } 28%,31% { opacity:0.5; } 32%,100% { opacity:0; }
+        }
+        @keyframes ir2Loop {
+          0%,52% { opacity:0; } 53%,56% { opacity:0.5; } 57%,100% { opacity:0; }
+        }
+
+        .ir-arrow {
+          position: absolute;
+          font-size: 8px;
+          color: var(--blue);
+          opacity: 0;
+        }
+        .ira-1 { top: 66px; left: 167px; animation: ia1Loop 20s linear infinite; }
+        .ira-2 { top: 76px; left: 321px; animation: ia2Loop 20s linear infinite; }
+
+        .ir-label {
+          position: absolute;
+          font-size: 7px;
+          color: var(--blue);
+          opacity: 0;
+          white-space: nowrap;
+        }
+        .irl-1 { top: 59px; left: 280px; animation: il1Loop 20s linear infinite; }
+        .irl-2 { top: 69px; left: 380px; animation: il2Loop 20s linear infinite; }
+      </style>
+
+      <div class="mem-root">
+        <!-- Title -->
+        <div class="mem-title">The Memory &#x2014; Compound Learning</div>
+
+        <!-- ===== RUN 1 ===== -->
+        <div class="run-box run-box-1">
+          <div class="run-label">Run 1</div>
+          <div class="code-line cl-1">db = connect(pool)</div>
+          <div class="code-line cl-2">res = query(sql)</div>
+          <div class="code-line cl-3">for r in res:</div>
+          <div class="code-line cl-4">  process(r)</div>
+          <div class="bug-flash">&#x26A0; pool exhaustion</div>
+          <div class="fix-line">&#x2713; patched: max_conn=20</div>
+        </div>
+
+        <!-- ===== RUN 2 ===== -->
+        <div class="run-box run-box-2">
+          <div class="run-label">Run 2</div>
+          <div class="code-line cl-1">pool = Pool(max=20)</div>
+          <div class="code-line cl-2">mock = create_mock()</div>
+          <div class="code-line cl-3">assert !is_fake(mock)</div>
+          <div class="code-line cl-4">run_tests(suite)</div>
+          <div class="pass-badge">&#x2713; clean &#x2014; pool reused</div>
+        </div>
+
+        <!-- ===== RUN 3 ===== -->
+        <div class="run-box run-box-3">
+          <div class="run-label">Run 3</div>
+          <div class="code-line cl-1">auth = rbac.check()</div>
+          <div class="code-line cl-2">route("/admin", auth)</div>
+          <div class="code-line cl-3">validate(perms)</div>
+          <div class="code-line cl-4">deploy(prod)</div>
+          <div class="pass-badge">&#x2713; clean &#x2014; RBAC enforced</div>
+        </div>
+
+        <!-- ===== FLOW CONNECTORS (dashed lines from runs to solutions) ===== -->
+        <div class="flow-connector fc-1"></div>
+        <div class="flow-connector fc-2"></div>
+        <div class="flow-connector fc-3"></div>
+        <div class="arrow-head ah-1">&#x25B6;</div>
+        <div class="arrow-head ah-2">&#x25B6;</div>
+        <div class="arrow-head ah-3">&#x25B6;</div>
+
+        <!-- ===== INJECT LINES (solutions -> runs, reverse flow) ===== -->
+        <div class="inject-reverse ir-1"></div>
+        <div class="inject-reverse ir-2"></div>
+        <div class="ir-arrow ira-1">&#x25C0;</div>
+        <div class="ir-arrow ira-2">&#x25C0;</div>
+        <div class="ir-label irl-1">inject CLAUDE.md</div>
+        <div class="ir-label irl-2">inject CLAUDE.md</div>
+
+        <!-- ===== SOLUTIONS STORE ===== -->
+        <div class="solutions-box">
+          <div class="solutions-title"><span>&#x1F4C1;</span> solutions/</div>
+
+          <div class="sol-entry sol-entry-1">
+            <span class="sol-text">Connection pool exhaustion</span>
+            <span class="sol-conf">0.85</span>
+            <br/>
+            <span class="sol-cat">performance</span>
+          </div>
+
+          <div class="sol-entry sol-entry-2">
+            <span class="sol-text">Mock detector caught fake test</span>
+            <span class="sol-conf">0.91</span>
+            <br/>
+            <span class="sol-cat">testing</span>
+          </div>
+
+          <div class="sol-entry sol-entry-3">
+            <span class="sol-text">RBAC bypass in admin route</span>
+            <span class="sol-conf">0.94</span>
+            <br/>
+            <span class="sol-cat">security</span>
+          </div>
+
+          <div class="sol-count count-0">0 entries</div>
+          <div class="sol-count count-1">1 entry</div>
+          <div class="sol-count count-2">2 entries</div>
+          <div class="sol-count count-3">3 entries</div>
+        </div>
+
+        <!-- ===== SUMMARY ===== -->
+        <div class="summary">
+          3 runs &#x2192; 3 learnings &#x2192; 0 repeated mistakes
+          <div class="summary-line2">compound knowledge accumulation</div>
+        </div>
+
+        <!-- ===== DIVIDER ===== -->
+        <div class="divider"></div>
+        <div class="divider-label">Knowledge Categories</div>
+
+        <!-- ===== CATEGORY BARS ===== -->
+        <div class="cat-section">
+          <div class="cat-col">
+            <div class="cat-bar-wrap">
+              <div class="cat-bar bar-security"></div>
+            </div>
+            <div class="cat-label">security</div>
+          </div>
+          <div class="cat-col">
+            <div class="cat-bar-wrap">
+              <div class="cat-bar bar-performance"></div>
+            </div>
+            <div class="cat-label">performance</div>
+          </div>
+          <div class="cat-col">
+            <div class="cat-bar-wrap">
+              <div class="cat-bar bar-architecture"></div>
+            </div>
+            <div class="cat-label">architecture</div>
+          </div>
+          <div class="cat-col">
+            <div class="cat-bar-wrap">
+              <div class="cat-bar bar-testing"></div>
+            </div>
+            <div class="cat-label">testing</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </foreignObject>
+</svg>

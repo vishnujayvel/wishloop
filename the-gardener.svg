@@ -1,0 +1,387 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" width="800" height="400">
+  <foreignObject x="0" y="0" width="800" height="400">
+    <div xmlns="http://www.w3.org/1999/xhtml">
+      <style>
+        /* ── Reset ── */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        /* ── Color Scheme ── */
+        :root {
+          --bg: #0d1117;
+          --fg: #7ee787;
+          --fg-dim: #238636;
+          --border: #30363d;
+          --text-muted: #484f58;
+          --text-subtle: #8b949e;
+          --orange: #d29922;
+          --orange-dim: #5c3d0e;
+          --scan-color: rgba(126, 231, 135, 0.15);
+          --font: "SF Mono", "Cascadia Code", "Fira Code", Consolas, "Courier New", monospace;
+        }
+
+        @media (prefers-color-scheme: light) {
+          :root {
+            --bg: #f6f8fa;
+            --fg: #1a7f37;
+            --fg-dim: #aaf0b4;
+            --border: #d0d7de;
+            --text-muted: #656d76;
+            --text-subtle: #57606a;
+            --orange: #bf8700;
+            --orange-dim: #fff1cc;
+            --scan-color: rgba(26, 127, 55, 0.1);
+          }
+        }
+
+        /* ── Reduced Motion ── */
+        @media (prefers-reduced-motion: reduce) {
+          .gardener-root,
+          .gardener-root * {
+            animation-duration: 0.01s !important;
+            animation-iteration-count: 1 !important;
+          }
+        }
+
+        /* ── Container ── */
+        .gardener-root {
+          width: 800px;
+          height: 400px;
+          background: var(--bg);
+          font-family: var(--font);
+          color: var(--fg);
+          position: relative;
+          overflow: hidden;
+          padding: 16px 24px;
+        }
+
+        /* ── Title ── */
+        .title {
+          font-size: 9px;
+          letter-spacing: 2.5px;
+          text-transform: uppercase;
+          color: var(--text-muted);
+          text-align: center;
+          margin-bottom: 14px;
+        }
+
+        /* ── Worktree Row ── */
+        .worktrees {
+          display: flex;
+          gap: 16px;
+          justify-content: center;
+          position: relative;
+          margin-bottom: 0;
+        }
+
+        .worktree {
+          width: 232px;
+          height: 80px;
+          border: 1.5px solid var(--fg-dim);
+          border-radius: 6px;
+          padding: 10px 14px;
+          position: relative;
+          opacity: 0;
+          animation: fadeIn 0.8s ease forwards;
+        }
+
+        .worktree:nth-child(1) { animation-delay: 0s; }
+        .worktree:nth-child(2) { animation-delay: 0.2s; }
+        .worktree:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes fadeIn {
+          to { opacity: 1; }
+        }
+
+        /* Worktree 2 orange border at 6s */
+        .worktree.wt2 {
+          animation: fadeIn 0.8s ease forwards, wt2Border 15s linear infinite;
+        }
+
+        @keyframes wt2Border {
+          0%, 39% { border-color: var(--fg-dim); }
+          40%, 79% { border-color: var(--orange); }
+          80% { border-color: var(--fg-dim); }
+        }
+
+        .wt-label {
+          font-size: 11px;
+          color: var(--fg);
+          font-weight: 600;
+          margin-bottom: 4px;
+        }
+
+        .wt-detail {
+          font-size: 9px;
+          color: var(--text-subtle);
+          line-height: 1.6;
+        }
+
+        .wt-detail span {
+          display: block;
+        }
+
+        /* ── Warning Badge ── */
+        .warning-badge {
+          position: absolute;
+          top: 6px;
+          right: 8px;
+          font-size: 8px;
+          font-weight: 700;
+          color: var(--orange);
+          background: var(--orange-dim);
+          padding: 2px 6px;
+          border-radius: 3px;
+          letter-spacing: 0.5px;
+          opacity: 0;
+          animation: badgeAppear 15s linear infinite;
+        }
+
+        @keyframes badgeAppear {
+          0%, 46% { opacity: 0; }
+          47%, 79% { opacity: 1; }
+          80% { opacity: 0; }
+        }
+
+        /* ── Scan Line ── */
+        .scan-area {
+          position: relative;
+          height: 6px;
+          margin: 8px 20px;
+          overflow: hidden;
+          border-radius: 3px;
+        }
+
+        .scan-line {
+          position: absolute;
+          top: 0;
+          left: -120px;
+          width: 120px;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, var(--scan-color), var(--fg), var(--scan-color), transparent);
+          border-radius: 3px;
+          animation: scanSweep 15s linear infinite;
+        }
+
+        @keyframes scanSweep {
+          0%, 6% { left: -120px; opacity: 0; }
+          7% { opacity: 1; }
+          8% { left: -120px; }
+          26% { left: calc(100%); opacity: 1; }
+          27% { opacity: 0; }
+          100% { opacity: 0; }
+        }
+
+        /* ── Check Indicators ── */
+        .checks-row {
+          display: flex;
+          gap: 16px;
+          justify-content: center;
+          margin: 10px 0;
+        }
+
+        .check-group {
+          width: 232px;
+          display: flex;
+          gap: 6px;
+          justify-content: center;
+          align-items: center;
+        }
+
+        .check-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          background: var(--border);
+          position: relative;
+          transition: none;
+        }
+
+        .check-label {
+          font-size: 7px;
+          color: var(--text-muted);
+          text-align: center;
+          width: 38px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 3px;
+        }
+
+        .check-label span {
+          display: block;
+        }
+
+        /* ── Worktree 1 checks: all green at 4-5s (27%-33%) ── */
+        .wt1-checks .c1 .check-dot { animation: dotGreen 15s linear infinite; animation-delay: 0s; }
+        .wt1-checks .c2 .check-dot { animation: dotGreen 15s linear infinite; animation-delay: 0.15s; }
+        .wt1-checks .c3 .check-dot { animation: dotGreen 15s linear infinite; animation-delay: 0.3s; }
+        .wt1-checks .c4 .check-dot { animation: dotGreen 15s linear infinite; animation-delay: 0.45s; }
+        .wt1-checks .c5 .check-dot { animation: dotGreen 15s linear infinite; animation-delay: 0.6s; }
+
+        @keyframes dotGreen {
+          0%, 26% { background: var(--border); }
+          27%, 79% { background: var(--fg); box-shadow: 0 0 6px var(--fg); }
+          80% { background: var(--border); box-shadow: none; }
+        }
+
+        /* ── Worktree 2 checks: green except build (orange) at 5-6s (33%-40%) ── */
+        .wt2-checks .c1 .check-dot { animation: dotGreen2 15s linear infinite; animation-delay: 0s; }
+        .wt2-checks .c2 .check-dot { animation: dotGreen2 15s linear infinite; animation-delay: 0.15s; }
+        .wt2-checks .c3 .check-dot { animation: dotGreen2 15s linear infinite; animation-delay: 0.3s; }
+        .wt2-checks .c4 .check-dot { animation: dotOrange 15s linear infinite; animation-delay: 0.45s; }
+        .wt2-checks .c5 .check-dot { animation: dotGreen2 15s linear infinite; animation-delay: 0.6s; }
+
+        @keyframes dotGreen2 {
+          0%, 33% { background: var(--border); }
+          34%, 79% { background: var(--fg); box-shadow: 0 0 6px var(--fg); }
+          80% { background: var(--border); box-shadow: none; }
+        }
+
+        @keyframes dotOrange {
+          0%, 33% { background: var(--border); }
+          34%, 79% { background: var(--orange); box-shadow: 0 0 6px var(--orange); }
+          80% { background: var(--border); box-shadow: none; }
+        }
+
+        /* ── Worktree 3 checks: all green at 8-10s (53%-67%) ── */
+        .wt3-checks .c1 .check-dot { animation: dotGreen3 15s linear infinite; animation-delay: 0s; }
+        .wt3-checks .c2 .check-dot { animation: dotGreen3 15s linear infinite; animation-delay: 0.15s; }
+        .wt3-checks .c3 .check-dot { animation: dotGreen3 15s linear infinite; animation-delay: 0.3s; }
+        .wt3-checks .c4 .check-dot { animation: dotGreen3 15s linear infinite; animation-delay: 0.45s; }
+        .wt3-checks .c5 .check-dot { animation: dotGreen3 15s linear infinite; animation-delay: 0.6s; }
+
+        @keyframes dotGreen3 {
+          0%, 53% { background: var(--border); }
+          54%, 79% { background: var(--fg); box-shadow: 0 0 6px var(--fg); }
+          80% { background: var(--border); box-shadow: none; }
+        }
+
+        /* ── Log Stream ── */
+        .log-area {
+          margin-top: 12px;
+          padding: 10px 14px;
+          border: 1px solid var(--border);
+          border-radius: 6px;
+          height: 106px;
+          overflow: hidden;
+          position: relative;
+        }
+
+        .log-header {
+          font-size: 8px;
+          color: var(--text-muted);
+          letter-spacing: 1.5px;
+          text-transform: uppercase;
+          margin-bottom: 8px;
+        }
+
+        .log-entry {
+          font-size: 10px;
+          line-height: 1.8;
+          color: var(--fg);
+          opacity: 0;
+          transform: translateX(40px);
+          white-space: nowrap;
+        }
+
+        .log-entry.orange {
+          color: var(--orange);
+        }
+
+        .log-1 { animation: logSlide 15s linear infinite; animation-delay: 0s; }
+        .log-2 { animation: logSlide 15s linear infinite; animation-delay: 0.6s; }
+        .log-3 { animation: logSlide 15s linear infinite; animation-delay: 1.2s; }
+        .log-4 { animation: logSlide 15s linear infinite; animation-delay: 1.8s; }
+
+        @keyframes logSlide {
+          0%, 52% { opacity: 0; transform: translateX(40px); }
+          55%, 79% { opacity: 1; transform: translateX(0); }
+          80% { opacity: 0; transform: translateX(0); }
+        }
+
+        /* ── Full Scene Fade ── */
+        .gardener-root {
+          animation: sceneFade 15s linear infinite;
+        }
+
+        @keyframes sceneFade {
+          0%, 2% { opacity: 0; }
+          5%, 78% { opacity: 1; }
+          83%, 100% { opacity: 0; }
+        }
+      </style>
+
+      <div class="gardener-root">
+        <div class="title">The Gardener &#x2014; Autonomous Monitoring</div>
+
+        <!-- Worktrees -->
+        <div class="worktrees">
+          <div class="worktree">
+            <div class="wt-label">wave-1</div>
+            <div class="wt-detail">
+              <span>branch: feat/auth-flow</span>
+              <span>agent: claude-1 &#x2022; 3 commits</span>
+              <span>last: 2m ago</span>
+            </div>
+          </div>
+          <div class="worktree wt2">
+            <div class="wt-label">wave-2</div>
+            <div class="wt-detail">
+              <span>branch: feat/payment-api</span>
+              <span>agent: claude-2 &#x2022; 5 commits</span>
+              <span>last: 4m ago</span>
+            </div>
+            <div class="warning-badge">BUILD BREAK</div>
+          </div>
+          <div class="worktree">
+            <div class="wt-label">wave-3</div>
+            <div class="wt-detail">
+              <span>branch: feat/dashboard-ui</span>
+              <span>agent: claude-3 &#x2022; 2 commits</span>
+              <span>last: 1m ago</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scan Line -->
+        <div class="scan-area">
+          <div class="scan-line"></div>
+        </div>
+
+        <!-- Check Indicators -->
+        <div class="checks-row">
+          <div class="check-group wt1-checks">
+            <div class="check-label c1"><div class="check-dot"></div><span>cmt</span></div>
+            <div class="check-label c2"><div class="check-dot"></div><span>sts</span></div>
+            <div class="check-label c3"><div class="check-dot"></div><span>agt</span></div>
+            <div class="check-label c4"><div class="check-dot"></div><span>bld</span></div>
+            <div class="check-label c5"><div class="check-dot"></div><span>cfl</span></div>
+          </div>
+          <div class="check-group wt2-checks">
+            <div class="check-label c1"><div class="check-dot"></div><span>cmt</span></div>
+            <div class="check-label c2"><div class="check-dot"></div><span>sts</span></div>
+            <div class="check-label c3"><div class="check-dot"></div><span>agt</span></div>
+            <div class="check-label c4"><div class="check-dot"></div><span>bld</span></div>
+            <div class="check-label c5"><div class="check-dot"></div><span>cfl</span></div>
+          </div>
+          <div class="check-group wt3-checks">
+            <div class="check-label c1"><div class="check-dot"></div><span>cmt</span></div>
+            <div class="check-label c2"><div class="check-dot"></div><span>sts</span></div>
+            <div class="check-label c3"><div class="check-dot"></div><span>agt</span></div>
+            <div class="check-label c4"><div class="check-dot"></div><span>bld</span></div>
+            <div class="check-label c5"><div class="check-dot"></div><span>cfl</span></div>
+          </div>
+        </div>
+
+        <!-- Log Stream -->
+        <div class="log-area">
+          <div class="log-header">&#x25B6; journal</div>
+          <div class="log-entry log-1">[08:30] wave-1: 3 commits, tests passing &#x2713;</div>
+          <div class="log-entry log-2 orange">[08:35] wave-2: BUILD FAILURE detected &#x2717;</div>
+          <div class="log-entry log-3 orange">[08:35] wave-2: Filing issue #42 &#x2192; github</div>
+          <div class="log-entry log-4">[08:40] wave-3: 2 commits, tests passing &#x2713;</div>
+        </div>
+      </div>
+    </div>
+  </foreignObject>
+</svg>
