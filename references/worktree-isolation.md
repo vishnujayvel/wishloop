@@ -109,3 +109,16 @@ git worktree prune
 - Auth tokens may not propagate to worktree subagents — use CLI-level `--worktree`
 - `getDefaultBranch` returns wrong branch in worktrees — explicitly specify base branch
 - git-crypt repos may hang on worktree creation — decrypt before creating worktrees
+- **Dashboard port conflict:** Two concurrent Loki sessions fight over port 57374. Set `LOKI_DASHBOARD_PORT=<unique>` per session, or use Worktrunk's `hash_port` template filter
+- **Skills not loaded in worktrees:** Claude Code loads skills from the main repo root, not the worktree (see [anthropics/claude-code#27985](https://github.com/anthropics/claude-code/issues/27985)). Copy `.claude/` into worktrees after creation, or ensure Worktrunk's post-start hook handles this
+- **Resume from correct directory:** `loki resume` reads `$PWD/.loki/CONTINUITY.md`. For worktree sessions, `cd` into the worktree (or `wt switch <name>`) before resuming — running from the main checkout resumes the wrong session
+- **Cross-worktree signaling:** `touch .loki/STOP` only affects the current `$PWD`. To signal a worktree Loki from elsewhere, use the full path: `touch /path/to/worktree/.loki/STOP`
+
+### Verified Safe
+
+The following were investigated and confirmed safe in worktrees (no action needed):
+
+- **Subagent `$PWD` inheritance:** `claude --dangerously-skip-permissions` subagents inherit the worktree's `$PWD`. `git rev-parse --show-toplevel` returns the worktree root.
+- **PID tracking:** Each worktree has its own `.loki/pids/` — no cross-contamination possible.
+- **Script path scoping:** Wishloop scripts scope paths to the target project/worktree (via `cd "$PROJECT_DIR"` or `$PROJECT_DIR/...`), so `.loki` and repo file access remain worktree-correct.
+- **Git operations:** Worktrees have independent index files. `git add -A && git commit` scopes to worktree files only.

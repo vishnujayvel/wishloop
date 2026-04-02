@@ -124,14 +124,32 @@ post-merge = ["openspec archive $(git branch --show-current)"]
 
 Detect the build system from Phase 2 intake (package.json → npm, Cargo.toml → cargo, go.mod → go, pyproject.toml → pip/pytest, Makefile → make). If `.worktrunk.toml` already exists, merge Wishloop hooks with existing configuration — do not overwrite.
 
-### 4c. Checkpoint commit
+### 4c. Discover and inject ADRs
+
+Scan the target project for ADRs in common locations: `docs/adrs/`, `docs/decisions/`, `architecture/decisions/`, and files matching `ADR-*.md` or `adr-*.md` in the repo root.
+
+For each ADR found:
+1. Extract title, status (`accepted`, `proposed`, `superseded`, `deprecated`), and a one-line summary from the document
+2. Check if the ADR's topic overlaps with files or domains in the current OpenSpec change — match by keywords in the ADR title/context against changed file paths, spec domains, and proposal scope
+3. If relevant, append to the project's CLAUDE.md under a `## Relevant ADRs` section (create the section if absent; never overwrite existing CLAUDE.md content)
+
+Injection format:
+```markdown
+- **ADR-NNN: Title** (status) — summary. Applies because: [reason]
+```
+
+If no ADRs are found or none are relevant, skip silently.
+
+See `references/adr-integration.md` for discovery patterns and relevance matching.
+
+### 4d. Checkpoint commit
 
 ```bash
 git add -A && git commit -m "checkpoint: prep for loki run (<change-name>)"
 loki doctor  # validate prerequisites
 ```
 
-**Always commit before Loki.** Clean git state is your recovery point if Loki breaks things.
+**Always commit before Loki.** Clean git state is your recovery point if Loki breaks things. The checkpoint captures ADR injections from 4c, learnings from 4a, and any `.worktrunk.toml` from 4b.
 
 **If `loki doctor` fails:** Print diagnostic output. Common fixes: install missing deps, clear stale `.loki/` state, ensure `claude` CLI is available with `--dangerously-skip-permissions`.
 
@@ -235,6 +253,22 @@ Categorize learnings (by technology, loki, workflow, or testing). Deduplicate ag
 
 See `references/learnings-schema.md` for categorization logic and deduplication rules.
 
+### 7d. Update ADRs with implementation consequences
+
+Check if any ADRs were injected into CLAUDE.md in Phase 4c. For each relevant ADR:
+
+1. Ask: "Did implementation reveal anything this ADR didn't anticipate?"
+2. If yes, append a dated entry to the ADR's `## Consequences` section:
+   ```markdown
+   ### Implementation feedback — YYYY-MM-DD (<change-name>)
+   <what was discovered>
+   ```
+3. If an ADR is discovered to be wrong or outdated, change its status to `**Status:** superseded` and note the reason inline
+
+If no ADRs were injected, skip this phase.
+
+See `references/adr-integration.md` for update format.
+
 ---
 
 ## Phase 8: Verification & Issue Filing
@@ -280,6 +314,16 @@ git merge --squash <change-branch>
 git commit -m "feat: <change-name>"
 openspec archive <change-name>
 ```
+
+### Auto-merge criteria
+
+When ALL of the following are true, **merge immediately without asking the user:**
+
+- CI checks pass (build + tests green)
+- Code review (e.g., CodeRabbit) has no unresolved blocking inline comments
+- No merge conflicts
+
+**Only pause for user input** when blocking review comments require design decisions that the agent cannot resolve autonomously.
 
 ### Merge error handling
 
@@ -332,6 +376,7 @@ Read these as needed — they contain detailed schemas, algorithms, and guides:
 | `references/learnings-schema.md` | Phase 4 learnings injection or Phase 7 extraction |
 | `references/worktree-isolation.md` | Phase 5 when another Loki session is already running |
 | `references/gardening-checks.md` | Phase 6 anomaly detection details or steering commands |
+| `references/adr-integration.md` | Phase 4 ADR discovery or Phase 7 ADR consequence updates |
 
 ## Scripts
 
