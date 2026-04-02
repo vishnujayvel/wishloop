@@ -120,5 +120,5 @@ The following were investigated and confirmed safe in worktrees (no action neede
 
 - **Subagent `$PWD` inheritance:** `claude --dangerously-skip-permissions` subagents inherit the worktree's `$PWD`. `git rev-parse --show-toplevel` returns the worktree root.
 - **PID tracking:** Each worktree has its own `.loki/pids/` — no cross-contamination possible.
-- **`$PWD` in scripts:** All Wishloop scripts use `$PWD`-relative paths, which resolve correctly in worktrees.
+- **Script path scoping:** Wishloop scripts scope paths to the target project/worktree (via `cd "$PROJECT_DIR"` or `$PROJECT_DIR/...`), so `.loki` and repo file access remain worktree-correct.
 - **Git operations:** Worktrees have independent index files. `git add -A && git commit` scopes to worktree files only.

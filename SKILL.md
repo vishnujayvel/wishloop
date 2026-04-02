@@ -134,7 +134,7 @@ For each ADR found:
 3. If relevant, append to the project's CLAUDE.md under a `## Relevant ADRs` section (create the section if absent; never overwrite existing CLAUDE.md content)
 
 Injection format:
-```
+```markdown
 - **ADR-NNN: Title** (status) — summary. Applies because: [reason]
 ```
 
@@ -255,15 +255,15 @@ See `references/learnings-schema.md` for categorization logic and deduplication 
 
 ### 7d. Update ADRs with implementation consequences
 
-Check if any ADRs were injected into CLAUDE.md in Phase 4d. For each relevant ADR:
+Check if any ADRs were injected into CLAUDE.md in Phase 4c. For each relevant ADR:
 
 1. Ask: "Did implementation reveal anything this ADR didn't anticipate?"
 2. If yes, append a dated entry to the ADR's `## Consequences` section:
-   ```
+   ```markdown
    ### Implementation feedback — YYYY-MM-DD (<change-name>)
    <what was discovered>
    ```
-3. If an ADR is discovered to be wrong or outdated, change its status to `Status: Superseded` and note the reason inline
+3. If an ADR is discovered to be wrong or outdated, change its status to `**Status:** superseded` and note the reason inline
 
 If no ADRs were injected, skip this phase.
 
@@ -320,7 +320,7 @@ openspec archive <change-name>
 When ALL of the following are true, **merge immediately without asking the user:**
 
 - CI checks pass (build + tests green)
-- Code review (e.g., CodeRabbit) has no unresolved inline comments
+- Code review (e.g., CodeRabbit) has no unresolved blocking inline comments
 - No merge conflicts
 
 **Only pause for user input** when blocking review comments require design decisions that the agent cannot resolve autonomously.

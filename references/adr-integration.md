@@ -12,7 +12,7 @@ Scan these locations in the target project (in order):
 4. `ADR-*.md` (repo root)
 5. `adr-*.md` (repo root)
 
-If multiple locations contain ADRs, merge results from all of them. Deduplicate by ADR number.
+If multiple locations contain ADRs, merge results from all of them. Deduplicate primarily by ADR number. If ADR number is missing, deduplicate by normalized title (lowercase, punctuation-stripped) and file path.
 
 ## Expected ADR Format
 
