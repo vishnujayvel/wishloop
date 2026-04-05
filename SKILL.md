@@ -207,7 +207,13 @@ Each wave runs in a separate worktree, so they do not conflict. Without Worktrun
 - **Product Thinking:** Brainstorm with user, ONE question at a time. Output to `product-context.md`.
 - **Documentation:** Read code, generate docs directly.
 
-This session's job is now MONITORING (Phase 6).
+**Initialize phase state before launch:**
+```bash
+mkdir -p .wishloop
+echo "{\"phase\": 5, \"phaseLabel\": \"Execute\", \"change\": \"<change-name>\", \"startedAt\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > .wishloop/state.json
+```
+
+**After launching Loki, immediately start Phase 6 monitoring.** When monitoring detects completion (`ACTION: ADVANCE_TO_PHASE_7`), proceed directly to Phase 7 → Phase 8 → Phase 9 without pausing for user input.
 
 ---
 
@@ -231,9 +237,40 @@ See `references/gardening-checks.md` for anomaly thresholds and steering command
 
 Dashboard: `http://localhost:57374/`
 
+### Phase Continuation Triggers
+
+The gardening script outputs ACTION directives. **You MUST act on them immediately:**
+
+| Directive | Meaning | Action |
+|-----------|---------|--------|
+| `ACTION: ADVANCE_TO_PHASE_7` | Loki completed successfully | Stop monitoring loop. Run Phase 7 immediately. Then Phase 8. Then Phase 9 if autonomous. |
+| `ACTION: INVESTIGATE_EXIT` | Loki agents exited without completion signal | Check Loki logs. If work is done, advance to Phase 7. If crashed, file bug and retry. |
+
+**Do NOT treat gardening output as a status update.** When you see `ACTION: ADVANCE_TO_PHASE_7`, stop monitoring and proceed. The pipeline is autonomous — waiting for human input between phases is a bug.
+
+### Phase State Tracking
+
+Before launching Loki (Phase 5), initialize state:
+```bash
+mkdir -p .wishloop
+echo '{"phase": 5, "phaseLabel": "Execute", "change": "<name>", "startedAt": "<ISO>"}' > .wishloop/state.json
+```
+
+The gardening script updates `.wishloop/state.json` when it detects completion. You can also read it to know where the pipeline is:
+```bash
+cat .wishloop/state.json  # → {"phase": 7, ...} means proceed to Phase 7
+```
+
+Update state at each phase transition:
+```bash
+echo '{"phase": N, "phaseLabel": "<label>", "change": "<name>", "advancedAt": "<ISO>"}' > .wishloop/state.json
+```
+
 ---
 
 ## Phase 7: Post-Run Capture
+
+> **Trigger:** Entered automatically when gardening detects completion (`ACTION: ADVANCE_TO_PHASE_7`) or when you confirm Loki has finished. Do NOT wait for user prompt.
 
 Every Loki run MUST produce a run instance record. No exceptions.
 
@@ -272,6 +309,8 @@ See `references/adr-integration.md` for update format.
 ---
 
 ## Phase 8: Verification & Issue Filing
+
+> **Trigger:** Entered automatically after Phase 7 completes. Do NOT wait for user prompt.
 
 ### Verify build and tests
 
