@@ -416,6 +416,39 @@ When ALL of the following are true, **merge immediately without asking the user:
 
 ---
 
+### Phase 8b: PR Review Loop (Babysitter)
+
+> **Trigger:** Starts automatically after Phase 8 creates a PR (if not merging directly). Also handles PRs from parallel Loki runs.
+
+The PR babysitter monitors ALL open PRs in a single loop — no per-PR crons needed.
+
+**Start the babysitter:**
+```bash
+# Single check (for /loop integration)
+bash <skill-path>/scripts/pr-babysitter.sh once
+
+# Via /loop (recommended — checks every 3 minutes)
+/loop 3m bash <skill-path>/scripts/pr-babysitter.sh once
+```
+
+**The script outputs ACTION directives:**
+
+| Directive | Meaning | Action |
+|-----------|---------|--------|
+| `ACTION: MERGE_PR` | PR is ready (CI pass, no blocking comments, mergeable) | Run `gh pr merge <N> --squash --delete-branch` |
+| `ACTION: FIX_REVIEW_COMMENTS` | Unresolved review threads | Dispatch subagent to read comments and push fixes |
+| `ACTION: FIX_CI_FAILURE` | CI checks failing | Investigate and fix on the branch |
+| `ACTION: REBASE_PR` | Merge conflict | Rebase the branch onto main |
+| `ACTION: ALL_PRS_MERGED` | No open PRs remain | Stop the babysitter loop, proceed to Phase 9 |
+
+**Merge order:** PRs are processed oldest-first. After merging one PR, the next cycle may detect conflicts on remaining PRs — the script will emit `ACTION: REBASE_PR` for those.
+
+**CodeRabbit handling:** The script detects "Currently processing" in recent comments and waits rather than merging prematurely.
+
+**Act on directives immediately.** Do not accumulate them. Merge when told to merge, fix when told to fix.
+
+---
+
 ## Phase 9: Autonomous Issue Loop
 
 The loop is the DEFAULT behavior — the user opts OUT, not in.
@@ -470,6 +503,7 @@ Read these as needed — they contain detailed schemas, algorithms, and guides:
 | `scripts/capture-run.sh <dir> <change> <hash> <time> <pid>` | Generate run instance JSON |
 | `scripts/inject-learnings.sh <dir> [tech-csv]` | Filter and inject learnings into CLAUDE.md |
 | `scripts/enrich-proposal.sh <dir> <proposal-path>` | Auto-enrich proposal with project context (Phase 3b) |
+| `scripts/pr-babysitter.sh [interval\|once] [max-cycles]` | Monitor all open PRs, triage reviews, merge in order (Phase 8b) |
 
 ## Canonical data location
 
