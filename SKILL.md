@@ -90,11 +90,47 @@ Write artifacts in `openspec/changes/<name>/`:
 
 **Loki can start from just a proposal.** If the proposal has clear requirements, technology choices, and testing strategy, skip writing design/specs/tasks — Loki handles the rest. Only generate full OpenSpec artifacts for brownfield modifications needing structured delta context.
 
+**Every proposal MUST include a `## Context` section.** For simple changes, auto-generate it via Phase 3b. For complex changes, augment with design decisions. Design/specs/tasks artifacts remain optional for focused changes.
+
 **Architecture work type:** Write `proposal.md` and `design.md` only. No tasks. Output is the design.
 
 Validate: `openspec validate <name>` — all artifacts must pass before proceeding.
 
 **If validation fails:** Show errors, ask user to fix, retry. Do not proceed with invalid specs.
+
+---
+
+### Phase 3b: Auto-Enrich Proposal
+
+Before proceeding to Phase 4, append a `## Context (auto-generated)` section to the proposal. This is mechanical collection, not creative writing.
+
+**Use the enrichment script:**
+```bash
+bash <skill-path>/scripts/enrich-proposal.sh <project-dir> <proposal-path>
+```
+
+**Or manually collect:**
+
+| Context | How to collect | Why Loki needs it |
+|---------|----------------|-------------------|
+| **Relevant file paths + line numbers** | `grep` for key terms from the proposal title/scope | Loki starts editing immediately, not searching |
+| **CLAUDE.md rules that apply** | Pattern-match proposal scope against Known Pitfalls, Mandatory Rules | Loki doesn't violate project conventions |
+| **Test file patterns** | Read 1-2 existing test files matching the scope | Loki writes tests that match the project's style |
+| **Build/run/test commands** | Read `scripts` from package.json / Makefile / Cargo.toml | Loki can verify its own work |
+| **Recent git history for relevant files** | `git log --oneline -3 <files>` | Loki knows what changed recently and why |
+| **Tech stack summary** | Read package.json deps or go.mod or pyproject.toml | Loki knows what libraries are available |
+
+**The enrichment is project-agnostic** — it reads whatever's in the current repo.
+
+### Proposal Quality Gate (before Phase 5)
+
+Before launching Loki, validate the proposal has:
+- [ ] At least one file path reference (in `## Context` or body)
+- [ ] At least one acceptance criterion
+- [ ] A testing strategy (even just "run existing tests")
+- [ ] The project's build command
+
+If any are missing, run the enrichment script or manually add the missing context. **Do not launch Loki with an incomplete brief** — thin proposals cause Loki to waste 5-10 minutes on discovery and produce convention-violating code.
 
 ---
 
@@ -424,6 +460,7 @@ Read these as needed — they contain detailed schemas, algorithms, and guides:
 | `scripts/gardening-check.sh <dir> <change>` | Run the 5 monitoring checks + journal append |
 | `scripts/capture-run.sh <dir> <change> <hash> <time> <pid>` | Generate run instance JSON |
 | `scripts/inject-learnings.sh <dir> [tech-csv]` | Filter and inject learnings into CLAUDE.md |
+| `scripts/enrich-proposal.sh <dir> <proposal-path>` | Auto-enrich proposal with project context (Phase 3b) |
 
 ## Canonical data location
 
