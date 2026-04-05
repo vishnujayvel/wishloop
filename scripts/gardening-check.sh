@@ -99,9 +99,13 @@ if [ "$AGENT_COUNT" -eq 0 ] && echo "$STATUS" | grep -qi "complete"; then
   # Update state file if it exists
   STATE_FILE="$PROJECT_DIR/.wishloop/state.json"
   if [ -d "$PROJECT_DIR/.wishloop" ]; then
-    cat > "$STATE_FILE" << STATEJSON
-{"phase": 7, "phaseLabel": "Post-Run Capture", "advancedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)", "reason": "Loki completion detected by gardening check", "change": "$CHANGE_NAME"}
-STATEJSON
+    jq -n \
+      --arg change "$CHANGE_NAME" \
+      --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+      '{phase: 7, phaseLabel: "Post-Run Capture", advancedAt: $ts, reason: "Loki completion detected by gardening check", change: $change}' \
+      > "$STATE_FILE"
+  else
+    echo "Note: .wishloop directory not found; state.json not updated."
   fi
 fi
 

@@ -83,7 +83,7 @@ check_prs() {
     fi
 
     # --- Ready to merge? ---
-    if [ "$CHECKS" = "pass" ] && [ "$MERGEABLE" = "MERGEABLE" ]; then
+    if [ "$CHECKS" = "pass" ] && [ "$MERGEABLE" = "MERGEABLE" ] && { [ "$REVIEW" = "APPROVED" ] || [ "$REVIEW" = "none" ]; }; then
       echo "  PR #$NUMBER: All checks pass, mergeable, no blocking comments."
       echo ""
       echo "  ACTION: MERGE_PR"

@@ -79,7 +79,7 @@ assert_exit_code() {
 # Setup: Create a temporary git repo for integration tests
 # ============================================================
 TEMP_DIR=$(mktemp -d)
-trap "rm -rf $TEMP_DIR" EXIT
+trap 'rm -rf "$TEMP_DIR"' EXIT
 
 setup_mock_repo() {
   local repo="$TEMP_DIR/mock-repo"
@@ -122,8 +122,11 @@ echo -e "${YELLOW}--- Unit Tests: Syntax Validation ---${NC}"
 for script in gardening-check.sh enrich-proposal.sh pr-babysitter.sh capture-run.sh inject-learnings.sh; do
   SCRIPT_PATH="$SCRIPT_DIR/scripts/$script"
   if [ -f "$SCRIPT_PATH" ]; then
-    bash -n "$SCRIPT_PATH" 2>/dev/null
-    assert_exit_code "syntax: $script" "0" "$?"
+    if bash -n "$SCRIPT_PATH" 2>/dev/null; then
+      assert_exit_code "syntax: $script" "0" "0"
+    else
+      assert_exit_code "syntax: $script" "0" "1"
+    fi
   else
     echo -e "  ${YELLOW}SKIP${NC}: $script not found"
   fi

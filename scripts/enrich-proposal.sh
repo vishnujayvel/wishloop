@@ -24,7 +24,7 @@ if [ -z "$PROPOSAL" ] || [ ! -f "$PROPOSAL" ]; then
   exit 1
 fi
 
-cd "$PROJECT_DIR"
+cd "$PROJECT_DIR" || { echo "Error: Cannot access project directory: $PROJECT_DIR"; exit 1; }
 
 # Skip if already enriched
 if grep -q "## Context (auto-generated)" "$PROPOSAL" 2>/dev/null; then
