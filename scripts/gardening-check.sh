@@ -41,21 +41,16 @@ STATUS=$(cat .loki/STATUS.txt 2>/dev/null | head -1 || echo "No STATUS.txt")
 AGENT_COUNT=$(ps aux | grep "claude.*dangerously" | grep -v grep | wc -l | tr -d ' ')
 
 # --- Check 4: Build status ---
+BUILD_STATUS=0
+BUILD_OUTPUT="No build system detected"
 if [ -f package.json ]; then
-  BUILD_OUTPUT=$(npm run build 2>&1 | tail -5)
-  BUILD_STATUS=$?
+  BUILD_OUTPUT=$(npm run build 2>&1 | tail -5) || BUILD_STATUS=$?
 elif [ -f Makefile ]; then
-  BUILD_OUTPUT=$(make build 2>&1 | tail -5)
-  BUILD_STATUS=$?
+  BUILD_OUTPUT=$(make build 2>&1 | tail -5) || BUILD_STATUS=$?
 elif [ -f Cargo.toml ]; then
-  BUILD_OUTPUT=$(cargo build 2>&1 | tail -5)
-  BUILD_STATUS=$?
+  BUILD_OUTPUT=$(cargo build 2>&1 | tail -5) || BUILD_STATUS=$?
 elif [ -f go.mod ]; then
-  BUILD_OUTPUT=$(go build ./... 2>&1 | tail -5)
-  BUILD_STATUS=$?
-else
-  BUILD_OUTPUT="No build system detected"
-  BUILD_STATUS=0
+  BUILD_OUTPUT=$(go build ./... 2>&1 | tail -5) || BUILD_STATUS=$?
 fi
 
 if [ "$BUILD_STATUS" -eq 0 ]; then
@@ -96,10 +91,29 @@ fi
 
 if [ "$AGENT_COUNT" -eq 0 ] && echo "$STATUS" | grep -qi "complete"; then
   echo "COMPLETION DETECTED"
+  echo ""
+  echo "ACTION: ADVANCE_TO_PHASE_7"
+  echo "Loki has completed. Proceed immediately to Phase 7 (Post-Run Capture) then Phase 8 (Verification)."
+  echo "Do NOT wait for user input. The pipeline must continue autonomously."
+
+  # Update state file if it exists
+  STATE_FILE="$PROJECT_DIR/.wishloop/state.json"
+  if [ -d "$PROJECT_DIR/.wishloop" ]; then
+    jq -n \
+      --arg change "$CHANGE_NAME" \
+      --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+      '{phase: 7, phaseLabel: "Post-Run Capture", advancedAt: $ts, reason: "Loki completion detected by gardening check", change: $change}' \
+      > "$STATE_FILE"
+  else
+    echo "Note: .wishloop directory not found; state.json not updated."
+  fi
 fi
 
 if [ "$AGENT_COUNT" -eq 0 ] && ! echo "$STATUS" | grep -qi "complete" && [ "$STATUS" != "No STATUS.txt" ]; then
   echo "WARNING: All agents exited but completion not confirmed"
+  echo ""
+  echo "ACTION: INVESTIGATE_EXIT"
+  echo "All Loki agents exited without completion signal. Check logs for errors."
 fi
 
 # --- Append journal entry ---

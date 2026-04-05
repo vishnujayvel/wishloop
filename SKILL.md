@@ -33,17 +33,18 @@ Classify work, spec it via OpenSpec CLI, execute via Loki Mode, monitor with gar
 
 Map the request to exactly one work type:
 
-| Signal | Work Type | Spec? | Loki? |
-|--------|-----------|-------|-------|
-| "build X from scratch", greenfield | **Greenfield** | Full init | Full 9-phase |
-| "add X", "integrate Y", new feature | **Feature** | `openspec new change` | Targeted |
-| "fix #N", "fix these bugs", bug list | **Bug Batch** | Batched changes | Per-wave |
-| "design X", "architecture for Y" | **Architecture** | Proposal + design only | No |
-| "refactor", "migrate from X to Y" | **Refactor** | `openspec new change` (MODIFIED) | Full |
-| "research", "spike", "evaluate" | **Research** | No | No |
-| "rethink the X", "brainstorm" | **Product Thinking** | No | No |
-| "add tests", "E2E coverage" | **Testing** | Test-focused change | Testing phase only |
-| "write docs", "API docs" | **Documentation** | No | No |
+| Signal | Work Type | Spec? | Loki? | Template |
+|--------|-----------|-------|-------|----------|
+| "build X from scratch", greenfield | **Greenfield** | Full init | Full 9-phase | — |
+| "add X", "integrate Y", new feature | **Feature** | `openspec new change` | Targeted | — |
+| "fix #N", "fix these bugs", bug list | **Bug Batch** | Batched changes | Per-wave | — |
+| "design X", "architecture for Y" | **Architecture** | Proposal + design only | No | `templates/hld.md` or `templates/lld.md` |
+| "refactor", "migrate from X to Y" | **Refactor** | `openspec new change` (MODIFIED) | Full | — |
+| "research", "spike", "evaluate" | **Research** | No | No | `templates/research.md` |
+| "audit X", "review Y for Z" | **Audit** | No | No | `templates/audit.md` |
+| "rethink the X", "brainstorm" | **Product Thinking** | No | No | — |
+| "add tests", "E2E coverage" | **Testing** | Test-focused change | Testing phase only | — |
+| "write docs", "API docs" | **Documentation** | No | No | `templates/docs.md` |
 
 **Distinguish UI tasks from integration tasks.** "Rewrite WritersRoomView" and "Wire Claude subprocess into WritersRoom" are separate tasks with different files and risk. Never combine them.
 
@@ -66,7 +67,7 @@ Map the request to exactly one work type:
 
 **Bug Batch:** Pull issues via `gh issue list --state open --json number,title,body,labels`. Run the Intelligent Batching Algorithm (see `references/batching-algorithm.md`).
 
-**Research / Product Thinking / Documentation:** Skip to Phase 5 (non-code paths).
+**Audit / Research / Product Thinking / Documentation:** Load the matching template from `templates/` and skip to Phase 5 (non-code paths).
 
 ---
 
@@ -90,11 +91,47 @@ Write artifacts in `openspec/changes/<name>/`:
 
 **Loki can start from just a proposal.** If the proposal has clear requirements, technology choices, and testing strategy, skip writing design/specs/tasks — Loki handles the rest. Only generate full OpenSpec artifacts for brownfield modifications needing structured delta context.
 
+**Every proposal MUST include a `## Context` section.** For simple changes, auto-generate it via Phase 3b. For complex changes, augment with design decisions. Design/specs/tasks artifacts remain optional for focused changes.
+
 **Architecture work type:** Write `proposal.md` and `design.md` only. No tasks. Output is the design.
 
 Validate: `openspec validate <name>` — all artifacts must pass before proceeding.
 
 **If validation fails:** Show errors, ask user to fix, retry. Do not proceed with invalid specs.
+
+---
+
+### Phase 3b: Auto-Enrich Proposal
+
+Before proceeding to Phase 4, append a `## Context (auto-generated)` section to the proposal. This is mechanical collection, not creative writing.
+
+**Use the enrichment script:**
+```bash
+bash <skill-path>/scripts/enrich-proposal.sh <project-dir> <proposal-path>
+```
+
+**Or manually collect:**
+
+| Context | How to collect | Why Loki needs it |
+|---------|----------------|-------------------|
+| **Relevant file paths + line numbers** | `grep` for key terms from the proposal title/scope | Loki starts editing immediately, not searching |
+| **CLAUDE.md rules that apply** | Pattern-match proposal scope against Known Pitfalls, Mandatory Rules | Loki doesn't violate project conventions |
+| **Test file patterns** | Read 1-2 existing test files matching the scope | Loki writes tests that match the project's style |
+| **Build/run/test commands** | Read `scripts` from package.json / Makefile / Cargo.toml | Loki can verify its own work |
+| **Recent git history for relevant files** | `git log --oneline -3 <files>` | Loki knows what changed recently and why |
+| **Tech stack summary** | Read package.json deps or go.mod or pyproject.toml | Loki knows what libraries are available |
+
+**The enrichment is project-agnostic** — it reads whatever's in the current repo.
+
+### Proposal Quality Gate (before Phase 5)
+
+Before launching Loki, validate the proposal has:
+- [ ] At least one file path reference (in `## Context` or body)
+- [ ] At least one acceptance criterion
+- [ ] A testing strategy (even just "run existing tests")
+- [ ] The project's build command
+
+If any are missing, run the enrichment script or manually add the missing context. **Do not launch Loki with an incomplete brief** — thin proposals cause Loki to waste 5-10 minutes on discovery and produce convention-violating code.
 
 ---
 
@@ -202,12 +239,26 @@ Each wave runs in a separate worktree, so they do not conflict. Without Worktrun
 
 ### Non-code work types
 
-- **Architecture:** Present design document from Phase 3.
-- **Research:** Use subagents for deep research. Output to `docs/plans/<topic>.md`.
-- **Product Thinking:** Brainstorm with user, ONE question at a time. Output to `product-context.md`.
-- **Documentation:** Read code, generate docs directly.
+For non-code work types, **load the matching template** from `templates/` and follow its workflow:
 
-This session's job is now MONITORING (Phase 6).
+| Work Type | Template | Output |
+|-----------|----------|--------|
+| **Audit** | `templates/audit.md` | `docs-internal/audit-<name>.md` + GitHub issues |
+| **Architecture (HLD)** | `templates/hld.md` | `docs/plans/<name>-architecture.md` + ADRs |
+| **Architecture (LLD)** | `templates/lld.md` | `docs/plans/<name>.md` or `openspec/changes/<name>/design.md` |
+| **Research** | `templates/research.md` | `docs/plans/<name>-research.md` |
+| **Documentation** | `templates/docs.md` | `docs/` files |
+| **Product Thinking** | _(no template)_ | `product-context.md` — brainstorm with user, ONE question at a time |
+
+Each template defines: required inputs, step-by-step workflow, output artifacts, quality gates, and exit criteria. Non-code templates skip Phases 5-6 (Execute/Monitor) entirely. Phase 7 (Capture) still runs — learnings apply to all work types.
+
+**Initialize phase state before launch:**
+```bash
+mkdir -p .wishloop
+echo "{\"phase\": 5, \"phaseLabel\": \"Execute\", \"change\": \"<change-name>\", \"startedAt\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > .wishloop/state.json
+```
+
+**After launching Loki, immediately start Phase 6 monitoring.** When monitoring detects completion (`ACTION: ADVANCE_TO_PHASE_7`), proceed directly to Phase 7 → Phase 8 → Phase 9 without pausing for user input.
 
 ---
 
@@ -231,9 +282,40 @@ See `references/gardening-checks.md` for anomaly thresholds and steering command
 
 Dashboard: `http://localhost:57374/`
 
+### Phase Continuation Triggers
+
+The gardening script outputs ACTION directives. **You MUST act on them immediately:**
+
+| Directive | Meaning | Action |
+|-----------|---------|--------|
+| `ACTION: ADVANCE_TO_PHASE_7` | Loki completed successfully | Stop monitoring loop. Run Phase 7 immediately. Then Phase 8. Then Phase 9 if autonomous. |
+| `ACTION: INVESTIGATE_EXIT` | Loki agents exited without completion signal | Check Loki logs. If work is done, advance to Phase 7. If crashed, file bug and retry. |
+
+**Do NOT treat gardening output as a status update.** When you see `ACTION: ADVANCE_TO_PHASE_7`, stop monitoring and proceed. The pipeline is autonomous — waiting for human input between phases is a bug.
+
+### Phase State Tracking
+
+Before launching Loki (Phase 5), initialize state:
+```bash
+mkdir -p .wishloop
+echo '{"phase": 5, "phaseLabel": "Execute", "change": "<name>", "startedAt": "<ISO>"}' > .wishloop/state.json
+```
+
+The gardening script updates `.wishloop/state.json` when it detects completion. You can also read it to know where the pipeline is:
+```bash
+cat .wishloop/state.json  # → {"phase": 7, ...} means proceed to Phase 7
+```
+
+Update state at each phase transition:
+```bash
+echo '{"phase": N, "phaseLabel": "<label>", "change": "<name>", "advancedAt": "<ISO>"}' > .wishloop/state.json
+```
+
 ---
 
 ## Phase 7: Post-Run Capture
+
+> **Trigger:** Entered automatically when gardening detects completion (`ACTION: ADVANCE_TO_PHASE_7`) or when you confirm Loki has finished. Do NOT wait for user prompt.
 
 Every Loki run MUST produce a run instance record. No exceptions.
 
@@ -272,6 +354,8 @@ See `references/adr-integration.md` for update format.
 ---
 
 ## Phase 8: Verification & Issue Filing
+
+> **Trigger:** Entered automatically after Phase 7 completes. Do NOT wait for user prompt.
 
 ### Verify build and tests
 
@@ -332,6 +416,39 @@ When ALL of the following are true, **merge immediately without asking the user:
 
 ---
 
+### Phase 8b: PR Review Loop (Babysitter)
+
+> **Trigger:** Starts automatically after Phase 8 creates a PR (if not merging directly). Also handles PRs from parallel Loki runs.
+
+The PR babysitter monitors ALL open PRs in a single loop — no per-PR crons needed.
+
+**Start the babysitter:**
+```bash
+# Single check (for /loop integration)
+bash <skill-path>/scripts/pr-babysitter.sh once
+
+# Via /loop (recommended — checks every 3 minutes)
+/loop 3m bash <skill-path>/scripts/pr-babysitter.sh once
+```
+
+**The script outputs ACTION directives:**
+
+| Directive | Meaning | Action |
+|-----------|---------|--------|
+| `ACTION: MERGE_PR` | PR is ready (CI pass, no blocking comments, mergeable) | Run `gh pr merge <N> --squash --delete-branch` |
+| `ACTION: FIX_REVIEW_COMMENTS` | Unresolved review threads | Dispatch subagent to read comments and push fixes |
+| `ACTION: FIX_CI_FAILURE` | CI checks failing | Investigate and fix on the branch |
+| `ACTION: REBASE_PR` | Merge conflict | Rebase the branch onto main |
+| `ACTION: ALL_PRS_MERGED` | No open PRs remain | Stop the babysitter loop, proceed to Phase 9 |
+
+**Merge order:** PRs are processed oldest-first. After merging one PR, the next cycle may detect conflicts on remaining PRs — the script will emit `ACTION: REBASE_PR` for those.
+
+**CodeRabbit handling:** The script detects "Currently processing" in recent comments and waits rather than merging prematurely.
+
+**Act on directives immediately.** Do not accumulate them. Merge when told to merge, fix when told to fix.
+
+---
+
 ## Phase 9: Autonomous Issue Loop
 
 The loop is the DEFAULT behavior — the user opts OUT, not in.
@@ -385,6 +502,8 @@ Read these as needed — they contain detailed schemas, algorithms, and guides:
 | `scripts/gardening-check.sh <dir> <change>` | Run the 5 monitoring checks + journal append |
 | `scripts/capture-run.sh <dir> <change> <hash> <time> <pid>` | Generate run instance JSON |
 | `scripts/inject-learnings.sh <dir> [tech-csv]` | Filter and inject learnings into CLAUDE.md |
+| `scripts/enrich-proposal.sh <dir> <proposal-path>` | Auto-enrich proposal with project context (Phase 3b) |
+| `scripts/pr-babysitter.sh [interval\|once] [max-cycles]` | Monitor all open PRs, triage reviews, merge in order (Phase 8b) |
 
 ## Canonical data location
 
