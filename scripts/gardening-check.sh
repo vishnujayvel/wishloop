@@ -41,21 +41,16 @@ STATUS=$(cat .loki/STATUS.txt 2>/dev/null | head -1 || echo "No STATUS.txt")
 AGENT_COUNT=$(ps aux | grep "claude.*dangerously" | grep -v grep | wc -l | tr -d ' ')
 
 # --- Check 4: Build status ---
+BUILD_STATUS=0
+BUILD_OUTPUT="No build system detected"
 if [ -f package.json ]; then
-  BUILD_OUTPUT=$(npm run build 2>&1 | tail -5)
-  BUILD_STATUS=$?
+  BUILD_OUTPUT=$(npm run build 2>&1 | tail -5) || BUILD_STATUS=$?
 elif [ -f Makefile ]; then
-  BUILD_OUTPUT=$(make build 2>&1 | tail -5)
-  BUILD_STATUS=$?
+  BUILD_OUTPUT=$(make build 2>&1 | tail -5) || BUILD_STATUS=$?
 elif [ -f Cargo.toml ]; then
-  BUILD_OUTPUT=$(cargo build 2>&1 | tail -5)
-  BUILD_STATUS=$?
+  BUILD_OUTPUT=$(cargo build 2>&1 | tail -5) || BUILD_STATUS=$?
 elif [ -f go.mod ]; then
-  BUILD_OUTPUT=$(go build ./... 2>&1 | tail -5)
-  BUILD_STATUS=$?
-else
-  BUILD_OUTPUT="No build system detected"
-  BUILD_STATUS=0
+  BUILD_OUTPUT=$(go build ./... 2>&1 | tail -5) || BUILD_STATUS=$?
 fi
 
 if [ "$BUILD_STATUS" -eq 0 ]; then

@@ -10,7 +10,10 @@
 # - Recent git history for relevant files
 # - Tech stack summary
 
-set -euo pipefail
+set -uo pipefail
+# Note: set -e is intentionally omitted. Many commands (grep, find, node) return
+# non-zero when they find no matches, which is expected during enrichment.
+# Each command handles its own errors via || true or conditional checks.
 
 PROJECT_DIR="${1:-.}"
 PROPOSAL="${2:-}"
@@ -34,7 +37,7 @@ TITLE=$(head -5 "$PROPOSAL" | grep -E "^#" | head -1 | sed 's/^#* *//')
 SCOPE_TERMS=$(head -20 "$PROPOSAL" | tr '[:upper:]' '[:lower:]' | \
   grep -oE '[a-zA-Z_][a-zA-Z0-9_]{3,}' | \
   sort -u | grep -vE '^(this|that|with|from|have|been|will|should|must|when|then|each|some|they|their|what|also|into|more|than|just|like|only|after|before|problem|solution|because|which|about|every|other|these|those|does|need|make|used|using|very|most|such|many|both|where|between|same|could|would|first|last|over|under|through|during|without|within|against|since|until|while|still)' | \
-  head -20)
+  head -20 || true)
 
 echo ""
 echo "=== Enriching proposal: $TITLE ==="
@@ -58,7 +61,7 @@ for term in $SCOPE_TERMS; do
   MATCHES=$(grep -rn --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" \
     --include="*.py" --include="*.go" --include="*.rs" --include="*.rb" \
     --include="*.java" --include="*.swift" --include="*.kt" \
-    -l "$term" . 2>/dev/null | grep -v node_modules | grep -v .git | head -5)
+    -l "$term" . 2>/dev/null | grep -v node_modules | grep -v .git | head -5 || true)
   if [ -n "$MATCHES" ]; then
     for f in $MATCHES; do
       LINE=$(grep -n "$term" "$f" 2>/dev/null | head -1 | cut -d: -f1)
@@ -85,7 +88,7 @@ if [ -f CLAUDE.md ]; then
     echo "$RULES" >> "$CONTEXT_FILE"
   else
     # Fallback: grep for lines with rule-like patterns
-    RULE_LINES=$(grep -iE '(always|never|must|do not|don.t|required|mandatory|forbidden)' CLAUDE.md | head -10)
+    RULE_LINES=$(grep -iE '(always|never|must|do not|don.t|required|mandatory|forbidden)' CLAUDE.md | head -10 || true)
     if [ -n "$RULE_LINES" ]; then
       echo "$RULE_LINES" | while IFS= read -r line; do
         echo "- $line" >> "$CONTEXT_FILE"
@@ -105,7 +108,7 @@ echo "" >> "$CONTEXT_FILE"
 TEST_FILE=""
 for term in $SCOPE_TERMS; do
   MATCH=$(find . -path ./node_modules -prune -o \( -name "*test*" -o -name "*spec*" \) -type f -print 2>/dev/null | \
-    grep -i "$term" | head -1)
+    grep -i "$term" | head -1 || true)
   if [ -n "$MATCH" ]; then
     TEST_FILE="$MATCH"
     break
@@ -114,7 +117,7 @@ done
 
 # Fallback: find any test file
 if [ -z "$TEST_FILE" ]; then
-  TEST_FILE=$(find . -path ./node_modules -prune -o \( -name "*.test.*" -o -name "*.spec.*" -o -name "*_test.*" \) -type f -print 2>/dev/null | head -1)
+  TEST_FILE=$(find . -path ./node_modules -prune -o \( -name "*.test.*" -o -name "*.spec.*" -o -name "*_test.*" \) -type f -print 2>/dev/null | head -1 || true)
 fi
 
 if [ -n "$TEST_FILE" ]; then
@@ -171,7 +174,7 @@ if [ "$FOUND_FILES" = true ]; then
   # Get unique files from the matches (first 5)
   for term in $SCOPE_TERMS; do
     FILE=$(grep -rl --include="*.ts" --include="*.tsx" --include="*.js" --include="*.py" --include="*.go" \
-      "$term" . 2>/dev/null | grep -v node_modules | head -1)
+      "$term" . 2>/dev/null | grep -v node_modules | head -1 || true)
     if [ -n "$FILE" ]; then
       HISTORY=$(git log --oneline -3 -- "$FILE" 2>/dev/null)
       if [ -n "$HISTORY" ]; then
