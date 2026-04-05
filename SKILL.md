@@ -33,17 +33,18 @@ Classify work, spec it via OpenSpec CLI, execute via Loki Mode, monitor with gar
 
 Map the request to exactly one work type:
 
-| Signal | Work Type | Spec? | Loki? |
-|--------|-----------|-------|-------|
-| "build X from scratch", greenfield | **Greenfield** | Full init | Full 9-phase |
-| "add X", "integrate Y", new feature | **Feature** | `openspec new change` | Targeted |
-| "fix #N", "fix these bugs", bug list | **Bug Batch** | Batched changes | Per-wave |
-| "design X", "architecture for Y" | **Architecture** | Proposal + design only | No |
-| "refactor", "migrate from X to Y" | **Refactor** | `openspec new change` (MODIFIED) | Full |
-| "research", "spike", "evaluate" | **Research** | No | No |
-| "rethink the X", "brainstorm" | **Product Thinking** | No | No |
-| "add tests", "E2E coverage" | **Testing** | Test-focused change | Testing phase only |
-| "write docs", "API docs" | **Documentation** | No | No |
+| Signal | Work Type | Spec? | Loki? | Template |
+|--------|-----------|-------|-------|----------|
+| "build X from scratch", greenfield | **Greenfield** | Full init | Full 9-phase | — |
+| "add X", "integrate Y", new feature | **Feature** | `openspec new change` | Targeted | — |
+| "fix #N", "fix these bugs", bug list | **Bug Batch** | Batched changes | Per-wave | — |
+| "design X", "architecture for Y" | **Architecture** | Proposal + design only | No | `templates/hld.md` or `templates/lld.md` |
+| "refactor", "migrate from X to Y" | **Refactor** | `openspec new change` (MODIFIED) | Full | — |
+| "research", "spike", "evaluate" | **Research** | No | No | `templates/research.md` |
+| "audit X", "review Y for Z" | **Audit** | No | No | `templates/audit.md` |
+| "rethink the X", "brainstorm" | **Product Thinking** | No | No | — |
+| "add tests", "E2E coverage" | **Testing** | Test-focused change | Testing phase only | — |
+| "write docs", "API docs" | **Documentation** | No | No | `templates/docs.md` |
 
 **Distinguish UI tasks from integration tasks.** "Rewrite WritersRoomView" and "Wire Claude subprocess into WritersRoom" are separate tasks with different files and risk. Never combine them.
 
@@ -66,7 +67,7 @@ Map the request to exactly one work type:
 
 **Bug Batch:** Pull issues via `gh issue list --state open --json number,title,body,labels`. Run the Intelligent Batching Algorithm (see `references/batching-algorithm.md`).
 
-**Research / Product Thinking / Documentation:** Skip to Phase 5 (non-code paths).
+**Audit / Research / Product Thinking / Documentation:** Load the matching template from `templates/` and skip to Phase 5 (non-code paths).
 
 ---
 
@@ -238,10 +239,18 @@ Each wave runs in a separate worktree, so they do not conflict. Without Worktrun
 
 ### Non-code work types
 
-- **Architecture:** Present design document from Phase 3.
-- **Research:** Use subagents for deep research. Output to `docs/plans/<topic>.md`.
-- **Product Thinking:** Brainstorm with user, ONE question at a time. Output to `product-context.md`.
-- **Documentation:** Read code, generate docs directly.
+For non-code work types, **load the matching template** from `templates/` and follow its workflow:
+
+| Work Type | Template | Output |
+|-----------|----------|--------|
+| **Audit** | `templates/audit.md` | `docs-internal/audit-<name>.md` + GitHub issues |
+| **Architecture (HLD)** | `templates/hld.md` | `docs/plans/<name>-architecture.md` + ADRs |
+| **Architecture (LLD)** | `templates/lld.md` | `docs/plans/<name>.md` or `openspec/changes/<name>/design.md` |
+| **Research** | `templates/research.md` | `docs/plans/<name>-research.md` |
+| **Documentation** | `templates/docs.md` | `docs/` files |
+| **Product Thinking** | _(no template)_ | `product-context.md` — brainstorm with user, ONE question at a time |
+
+Each template defines: required inputs, step-by-step workflow, output artifacts, quality gates, and exit criteria. Non-code templates skip Phases 5-6 (Execute/Monitor) entirely. Phase 7 (Capture) still runs — learnings apply to all work types.
 
 **Initialize phase state before launch:**
 ```bash
