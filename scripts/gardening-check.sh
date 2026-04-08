@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Gardening check for OpenSpec Loki Loop
-# Run every 5 minutes during Loki execution to monitor progress.
+# Lightweight session monitor for Wishloop v2.
+# Uses `loki status --json` for health checks (P6: External Interface Only).
+# No direct .loki/ file access — all interaction through Loki's public CLI.
+#
 # Usage: bash gardening-check.sh [project-dir] [change-name]
 # Integration: /loop 5m bash <skill-path>/scripts/gardening-check.sh /path/to/project my-change
 
@@ -8,137 +10,131 @@ set -euo pipefail
 
 PROJECT_DIR="${1:-.}"
 CHANGE_NAME="${2:-unknown}"
-JOURNAL="$PROJECT_DIR/docs/plans/pipeline-journal.md"
 TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+STATE_FILE="$PROJECT_DIR/.wishloop/state.json"
 
-# Detect Worktrunk
-WT_AVAILABLE=false
-if command -v wt &>/dev/null; then
-  WT_AVAILABLE=true
-fi
+# Track stall detection across polls (file-based counter)
+STALL_FILE="$PROJECT_DIR/.wishloop/.stall-tracker"
 
 cd "$PROJECT_DIR"
 
-# Worktrunk-enhanced status check
-check_wt_status() {
-  if [ "$WT_AVAILABLE" = true ]; then
-    echo "=== Worktrunk Status ==="
-    wt list 2>/dev/null || true
-    echo ""
-  fi
-}
+# --- Query Loki session status via public CLI ---
+STATUS_JSON=""
+SESSION_STATUS="unknown"
+ITERATION="0"
+TASKS_DONE="0"
+TASKS_PENDING="0"
 
-# --- Worktrunk status (additive, before git checks) ---
-check_wt_status
+if command -v loki &>/dev/null; then
+  STATUS_JSON=$(loki status --json 2>/dev/null || echo '{}')
+  SESSION_STATUS=$(echo "$STATUS_JSON" | jq -r '.status // "unknown"')
+  ITERATION=$(echo "$STATUS_JSON" | jq -r '.iteration // "0"')
+  TASKS_DONE=$(echo "$STATUS_JSON" | jq -r '.task_counts.completed // "0"')
+  TASKS_PENDING=$(echo "$STATUS_JSON" | jq -r '.task_counts.pending // "0"')
+else
+  echo "WARNING: loki CLI not found on PATH. Cannot monitor session."
+  SESSION_STATUS="unknown"
+fi
 
-# --- Check 1: Recent commits ---
+# --- Worktrunk status (additive) ---
+if command -v wt &>/dev/null; then
+  echo "=== Worktrunk Status ==="
+  wt list 2>/dev/null || true
+  echo ""
+fi
+
+# --- Recent commits (lightweight progress indicator) ---
 RECENT_COMMITS=$(git log --oneline -5 2>/dev/null || echo "No git repo")
 
-# --- Check 2: Loki task progress ---
-STATUS=$(cat .loki/STATUS.txt 2>/dev/null | head -1 || echo "No STATUS.txt")
-
-# --- Check 3: Active agents ---
-AGENT_COUNT=$(ps aux | grep "claude.*dangerously" | grep -v grep | wc -l | tr -d ' ')
-
-# --- Check 4: Build status ---
-BUILD_STATUS=0
-BUILD_OUTPUT="No build system detected"
-if [ -f package.json ]; then
-  BUILD_OUTPUT=$(npm run build 2>&1 | tail -5) || BUILD_STATUS=$?
-elif [ -f Makefile ]; then
-  BUILD_OUTPUT=$(make build 2>&1 | tail -5) || BUILD_STATUS=$?
-elif [ -f Cargo.toml ]; then
-  BUILD_OUTPUT=$(cargo build 2>&1 | tail -5) || BUILD_STATUS=$?
-elif [ -f go.mod ]; then
-  BUILD_OUTPUT=$(go build ./... 2>&1 | tail -5) || BUILD_STATUS=$?
-fi
-
-if [ "$BUILD_STATUS" -eq 0 ]; then
-  BUILD_RESULT="PASS"
-else
-  BUILD_RESULT="FAIL"
-fi
-
-# --- Check 5: Git conflicts ---
-GIT_STATUS=$(git status --short 2>/dev/null || echo "No git repo")
-if echo "$GIT_STATUS" | grep -q "^UU\|^AA\|^DD"; then
-  CONFLICTS=$(echo "$GIT_STATUS" | grep "^UU\|^AA\|^DD")
-else
-  CONFLICTS="NONE"
-fi
-
 # --- Output structured report ---
-echo "=== Gardening Check: $TIMESTAMP ==="
+echo "=== Session Monitor: $TIMESTAMP ==="
 echo "Change: $CHANGE_NAME"
+echo ""
+echo "Loki status: $SESSION_STATUS"
+echo "Iteration: $ITERATION"
+echo "Tasks: $TASKS_DONE completed, $TASKS_PENDING pending"
 echo ""
 echo "Recent commits:"
 echo "$RECENT_COMMITS"
 echo ""
-echo "STATUS.txt: $STATUS"
-echo "Active agents: $AGENT_COUNT"
-echo "Build: $BUILD_RESULT"
-echo "Conflicts: $CONFLICTS"
-echo ""
 
-# --- Anomaly detection ---
-LAST_COMMIT_TIME=$(git log -1 --format=%ct 2>/dev/null || echo 0)
-NOW=$(date +%s)
-MINUTES_SINCE_COMMIT=$(( (NOW - LAST_COMMIT_TIME) / 60 ))
+# --- Stall detection ---
+if [ "$SESSION_STATUS" = "running" ]; then
+  LAST_ITERATION="0"
+  STALL_COUNT=0
 
-if [ "$AGENT_COUNT" -gt 0 ] && [ "$MINUTES_SINCE_COMMIT" -gt 15 ]; then
-  echo "WARNING: Potential stall — $AGENT_COUNT agents active but no commits for ${MINUTES_SINCE_COMMIT} minutes"
+  if [ -f "$STALL_FILE" ]; then
+    LAST_ITERATION=$(jq -r '.iteration // "0"' "$STALL_FILE" 2>/dev/null || echo "0")
+    STALL_COUNT=$(jq -r '.count // 0' "$STALL_FILE" 2>/dev/null || echo "0")
+  fi
+
+  if [ "$ITERATION" = "$LAST_ITERATION" ]; then
+    STALL_COUNT=$((STALL_COUNT + 1))
+  else
+    STALL_COUNT=0
+  fi
+
+  mkdir -p "$(dirname "$STALL_FILE")"
+  echo "{\"iteration\": \"$ITERATION\", \"count\": $STALL_COUNT, \"checkedAt\": \"$TIMESTAMP\"}" > "$STALL_FILE"
+
+  if [ "$STALL_COUNT" -ge 3 ]; then
+    echo "WARNING: Session stalled — iteration $ITERATION unchanged for $((STALL_COUNT * 5)) minutes"
+    echo ""
+    echo "ACTION: SESSION_STALLED"
+    echo "Session has not progressed for 15+ minutes. Consider: loki stop && loki resume"
+  fi
 fi
 
-if [ "$AGENT_COUNT" -eq 0 ] && echo "$STATUS" | grep -qi "complete"; then
-  echo "COMPLETION DETECTED"
+# --- Completion detection ---
+if [ "$SESSION_STATUS" = "completed" ]; then
+  echo "SESSION COMPLETE"
   echo ""
-  echo "ACTION: ADVANCE_TO_PHASE_7"
-  echo "Loki has completed. Proceed immediately to Phase 7 (Post-Run Capture) then Phase 8 (Verification)."
-  echo "Do NOT wait for user input. The pipeline must continue autonomously."
+  echo "ACTION: SESSION_COMPLETE"
+  echo "Loki session completed. Proceed to Step 4 (Post-Session)."
 
-  # Update state file if it exists
-  STATE_FILE="$PROJECT_DIR/.wishloop/state.json"
+  # Update state file
   if [ -d "$PROJECT_DIR/.wishloop" ]; then
     jq -n \
       --arg change "$CHANGE_NAME" \
       --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-      '{phase: 7, phaseLabel: "Post-Run Capture", advancedAt: $ts, reason: "Loki completion detected by gardening check", change: $change}' \
+      '{"step": "post-session", "change": $change, "completedAt": $ts}' \
       > "$STATE_FILE"
-  else
-    echo "Note: .wishloop directory not found; state.json not updated."
   fi
+
+  # Clean up stall tracker
+  rm -f "$STALL_FILE"
 fi
 
-if [ "$AGENT_COUNT" -eq 0 ] && ! echo "$STATUS" | grep -qi "complete" && [ "$STATUS" != "No STATUS.txt" ]; then
-  echo "WARNING: All agents exited but completion not confirmed"
-  echo ""
-  echo "ACTION: INVESTIGATE_EXIT"
-  echo "All Loki agents exited without completion signal. Check logs for errors."
+# --- Crash detection ---
+if [ "$SESSION_STATUS" = "stopped" ] || [ "$SESSION_STATUS" = "unknown" ]; then
+  # Check if this was expected (user-initiated stop) or a crash
+  if [ "$SESSION_STATUS" = "unknown" ]; then
+    echo "WARNING: No active Loki session found — may have crashed"
+    echo ""
+    echo "ACTION: SESSION_CRASHED"
+    echo "Session may have crashed. Check logs. Suggest: loki resume"
+
+    if [ -d "$PROJECT_DIR/.wishloop" ]; then
+      jq -n \
+        --arg change "$CHANGE_NAME" \
+        --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        '{"step": "post-session", "change": $change, "status": "crashed", "completedAt": $ts}' \
+        > "$STATE_FILE"
+    fi
+  else
+    echo "Session stopped."
+    echo ""
+    echo "ACTION: SESSION_COMPLETE"
+    echo "Loki session stopped. Proceed to Step 4 (Post-Session)."
+
+    if [ -d "$PROJECT_DIR/.wishloop" ]; then
+      jq -n \
+        --arg change "$CHANGE_NAME" \
+        --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        '{"step": "post-session", "change": $change, "completedAt": $ts}' \
+        > "$STATE_FILE"
+    fi
+  fi
+
+  rm -f "$STALL_FILE"
 fi
-
-# --- Append journal entry ---
-mkdir -p "$(dirname "$JOURNAL")"
-
-# Include branch name for worktree disambiguation when Worktrunk is available
-BRANCH_LABEL=""
-if [ "$WT_AVAILABLE" = true ]; then
-  CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "detached")
-  BRANCH_LABEL=" [branch: $CURRENT_BRANCH]"
-fi
-
-cat >> "$JOURNAL" << EOF
-
-## $TIMESTAMP — Gardening Check${BRANCH_LABEL}
-
-| Metric | Value |
-|--------|-------|
-| Commits since last check | $(echo "$RECENT_COMMITS" | head -3) |
-| Active agents | $AGENT_COUNT |
-| STATUS.txt summary | $STATUS |
-| Build status | $BUILD_RESULT |
-| Git conflicts | $CONFLICTS |
-
-**Observations:** Auto-check. ${MINUTES_SINCE_COMMIT}m since last commit. ${AGENT_COUNT} agents active.
-EOF
-
-echo "Journal entry appended to $JOURNAL"
