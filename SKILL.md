@@ -9,7 +9,7 @@ description: |
   Triggers on: "openspec", "loki", "SDLC", "run the loop", "wishloop", "worktrunk" + parallel context,
   "fix these bugs" + loki context, "build X from scratch" + openspec context,
   "continue where we left off" with openspec/changes/, greenfield projects with openspec/ directory,
-  "archive the change", "verify and triage".
+  "archive the change", "verify and triage", "drain", "wishloop --drain".
 
   DO NOT USE FOR one-off brainstorming (use superpowers:brainstorming),
   web/topic research (use deep-research), Kiro-based SDLC (use pdlc-autopilot),
@@ -38,6 +38,81 @@ Thin session manager for Loki Mode. Classify work, spec it via OpenSpec CLI, con
 | **P4: Strong Proposals, Thin Wrapper** | Quality of the Loki session = quality of the proposal. Invest in enrichment. |
 | **P5: Upstream When Generic** | If a Wishloop feature is generic, contribute upstream. Plan B after 2 weeks. |
 | **P6: External Interface Only** | Wishloop calls ONLY Loki's public CLI. NEVER internal run.sh functions. Zero `.loki/` file coupling. |
+
+---
+
+## Drain Mode
+
+Autonomous loop that processes ALL open GitHub issues until the backlog is empty. Wraps v2 Steps 1-6 in a fetch-prioritize-launch-monitor-babysit cycle.
+
+### Invocation
+
+```bash
+bash <skill-path>/scripts/drain.sh                          # drain all open issues
+bash <skill-path>/scripts/drain.sh --label bug              # drain only bugs
+bash <skill-path>/scripts/drain.sh --label refactor --max-iterations 3
+```
+
+Or via the skill trigger: `wishloop --drain` / `wishloop --drain --label bug`
+
+### How It Works
+
+```
+FETCH (gh issue list) → STOP? (zero = exit) → PRIORITIZE → RESUME? →
+  PICK → CLASSIFY → LAUNCH (loki run #N --pr) →
+  MONITOR (loki status --json, 5min polls) →
+  POST (docs, learnings, archival) →
+  BABYSIT (CodeRabbit → loki quick → merge) →
+LOOP
+```
+
+### Key Design: GitHub Issues ARE the State
+
+No local backlog file. GitHub Issues are the single source of truth:
+- Open issues = work remaining
+- Closed issues = work done  
+- Issue labels = priority and filtering
+- PR state = current work-in-progress
+
+### Session Resumption
+
+On re-invoke, drain mode checks:
+1. `.wishloop/state.json` — what step were we in?
+2. `gh pr list --state open` — if any, resume at BABYSIT
+3. `loki status --json` — if running, resume at MONITOR
+4. If neither, fetch open issues and start fresh
+
+### Monitoring (via `loki status --json`)
+
+The drain loop polls `loki status --json` every 5 minutes to detect:
+- `completed` → proceed to post-session
+- `stopped` → proceed to post-session
+- `running` → continue polling (with stall detection)
+- `unknown` → attempt `loki resume`, then crash recovery
+
+### Emergency Stop (`loki stop`)
+
+If the session is stalled (iteration unchanged for 15+ minutes), drain mode runs:
+```bash
+loki stop     # Kill stalled session
+loki resume   # Restart from last checkpoint
+```
+
+### Priority Tiers
+
+```
+critical > bug > auto-detected > refactor > enhancement > documentation
+Within same tier: smaller effort first (body length heuristic)
+```
+
+### Cumulative Summary (on exit)
+
+```
+=== Drain Complete ===
+Iterations: 3 | Duration: 47 min | Commits: 12 | Files: 8
+Issues at start: 5 | Resolved: 4 | Filed: 1 | Remaining: 2
+Loki sessions: 3 | PRs merged: 4 | Quick fixes: 2
+```
 
 ---
 
@@ -478,6 +553,7 @@ Learnings captured: {N}
 
 | Script | Purpose |
 |--------|---------|
+| `scripts/drain.sh [--label <X>] [--max-iterations <N>]` | Autonomous drain loop: fetch, prioritize, launch, monitor, babysit, merge, repeat |
 | `scripts/gardening-check.sh <dir> <change>` | Lightweight session monitoring via `loki status --json` |
 | `scripts/capture-run.sh <dir> <change> <hash> <time> <pid>` | Generate run instance JSON |
 | `scripts/enrich-proposal.sh <dir> <proposal-path>` | Auto-enrich proposal with project context (Step 2b) |
