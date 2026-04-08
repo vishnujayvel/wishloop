@@ -21,14 +21,14 @@ description: |
 
 Thin session manager for Loki Mode. Classify work, spec it via OpenSpec CLI, configure and launch Loki, monitor the session, babysit the PR, loop.
 
-### Prerequisites
+## Prerequisites
 
 - **openspec CLI** — `openspec` (spec generation)
 - **loki CLI** — `loki start` (autonomous execution, requires `--dangerously-skip-permissions`)
 - **gh CLI** — `gh issue create` / `gh issue list` (bug filing and feedback loop)
 - **Worktrunk** *(recommended)* — `brew install worktrunk && wt config shell install` (worktree lifecycle, merge automation). Optional — the skill falls back to manual git worktrees when not installed.
 
-### Design Principles
+## Design Principles
 
 | Principle | Rule |
 |-----------|------|
@@ -369,7 +369,7 @@ After PR is merged:
 **Cooldown:** 2 minutes between iterations. User can type "stop," "skip," or provide steering input.
 
 ### Cumulative summary (on exit):
-```
+```text
 === Wishloop Complete ===
 Iterations: {N} | Duration: {M} min | Commits: {C} | Files: {F}
 Issues at start: {N} | Filed: {N} | Resolved: {N} | Remaining: {N}

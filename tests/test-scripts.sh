@@ -281,7 +281,7 @@ done
 STEP_LINES=$(grep -n "^## Step" "$SKILLMD" | head -20)
 PREV_STEP=0
 STEP_ORDER_OK=true
-while IFS=: read -r line_num line_text; do
+while IFS=: read -r _ line_text; do
   STEP_NUM=$(echo "$line_text" | grep -oE '[0-9]+' | head -1)
   if [ -n "$STEP_NUM" ] && [ "$STEP_NUM" -lt "$PREV_STEP" ]; then
     STEP_ORDER_OK=false

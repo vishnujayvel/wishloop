@@ -131,7 +131,7 @@ if [ "$SESSION_STATUS" = "stopped" ] || [ "$SESSION_STATUS" = "unknown" ]; then
       jq -n \
         --arg change "$CHANGE_NAME" \
         --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-        '{"step": "post-session", "change": $change, "completedAt": $ts}' \
+        '{"step": "post-session", "change": $change, "status": "stopped", "completedAt": $ts}' \
         > "$STATE_FILE"
     fi
   fi
