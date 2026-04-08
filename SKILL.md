@@ -57,7 +57,7 @@ Or via the skill trigger: `wishloop --drain` / `wishloop --drain --label bug`
 
 ### How It Works
 
-```
+```text
 FETCH (gh issue list) → STOP? (zero = exit) → PRIORITIZE → RESUME? →
   PICK → CLASSIFY → LAUNCH (loki run #N --pr) →
   MONITOR (loki status --json, 5min polls) →
@@ -100,14 +100,14 @@ loki resume   # Restart from last checkpoint
 
 ### Priority Tiers
 
-```
+```text
 critical > bug > auto-detected > refactor > enhancement > documentation
 Within same tier: smaller effort first (body length heuristic)
 ```
 
 ### Cumulative Summary (on exit)
 
-```
+```text
 === Drain Complete ===
 Iterations: 3 | Duration: 47 min | Commits: 12 | Files: 8
 Issues at start: 5 | Resolved: 4 | Filed: 1 | Remaining: 2
@@ -553,7 +553,7 @@ Learnings captured: {N}
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/drain.sh [--label <X>] [--max-iterations <N>]` | Autonomous drain loop: fetch, prioritize, launch, monitor, babysit, merge, repeat |
+| `scripts/drain.sh [--label <X>] [--max-iterations <N>] [--cooldown <seconds>]` | Autonomous drain loop: fetch, prioritize, launch, monitor, babysit, merge, repeat |
 | `scripts/gardening-check.sh <dir> <change>` | Lightweight session monitoring via `loki status --json` |
 | `scripts/capture-run.sh <dir> <change> <hash> <time> <pid>` | Generate run instance JSON |
 | `scripts/enrich-proposal.sh <dir> <proposal-path>` | Auto-enrich proposal with project context (Step 2b) |

@@ -77,7 +77,7 @@ cd "$PROJECT_DIR"
 
 # --- Helper: fetch open issues ---
 fetch_issues() {
-  local args=("--state" "open" "--json" "number,title,body,labels,createdAt")
+  local args=("--state" "open" "--limit" "9999" "--json" "number,title,body,labels,createdAt")
   if [ -n "$LABEL_FILTER" ]; then
     args+=("--label" "$LABEL_FILTER")
   fi
@@ -106,8 +106,35 @@ prioritize_issues() {
   '
 }
 
-# --- Helper: check for open PRs (resumption) ---
+# --- Helper: check for open PRs from current session ---
+# Scopes to the current issue by checking PR body for "Closes #N" or "Fixes #N".
+# Falls back to first open PR if no issue context is available.
 check_open_prs() {
+  local issue_num="${1:-}"
+  if [ -n "$issue_num" ]; then
+    # Search for PR linked to this specific issue
+    local pr
+    pr=$(gh pr list --state open --search "closes #$issue_num OR fixes #$issue_num" --json number --jq '.[0].number // empty' 2>/dev/null || true)
+    if [ -n "$pr" ]; then
+      echo "$pr"
+      return
+    fi
+  fi
+  # Fallback: check state file for persisted PR number
+  if [ -f "$STATE_FILE" ]; then
+    local state_pr
+    state_pr=$(jq -r '.pr // empty' "$STATE_FILE" 2>/dev/null || true)
+    if [ -n "$state_pr" ] && [ "$state_pr" != "null" ]; then
+      # Verify PR is still open
+      local pr_state
+      pr_state=$(gh pr view "$state_pr" --json state --jq '.state' 2>/dev/null || echo "CLOSED")
+      if [ "$pr_state" = "OPEN" ]; then
+        echo "$state_pr"
+        return
+      fi
+    fi
+  fi
+  # Last resort: first open PR (may be unrelated, but acceptable for single-PR repos)
   gh pr list --state open --json number --jq '.[0].number // empty' 2>/dev/null || true
 }
 
@@ -285,22 +312,27 @@ babysit_pr() {
     babysitter_output=$(bash "$SCRIPT_DIR/pr-babysitter.sh" once 2>&1 || true)
     echo "$babysitter_output"
 
-    # Parse action directives from pr-babysitter.sh
+    # Parse action directives from pr-babysitter.sh, scoped to our PR
     if echo "$babysitter_output" | grep -q "ACTION: ALL_PRS_MERGED"; then
       echo "  All PRs merged!"
       PRS_MERGED=$((PRS_MERGED + 1))
       return 0
     fi
 
-    if echo "$babysitter_output" | grep -q "ACTION: MERGE_PR"; then
+    # Verify the action targets our specific PR before acting
+    if echo "$babysitter_output" | grep -q "ACTION: MERGE_PR" && echo "$babysitter_output" | grep -q "PR #$pr_number"; then
       echo "  Merging PR #$pr_number..."
-      gh pr merge "$pr_number" --squash --delete-branch 2>/dev/null || true
-      PRS_MERGED=$((PRS_MERGED + 1))
-      return 0
+      if gh pr merge "$pr_number" --squash --delete-branch 2>/dev/null; then
+        PRS_MERGED=$((PRS_MERGED + 1))
+        return 0
+      else
+        echo "  Merge failed for PR #$pr_number."
+        return 1
+      fi
     fi
 
-    if echo "$babysitter_output" | grep -q "ACTION: FIX_REVIEW_COMMENTS"; then
-      echo "  Unresolved review threads. Dispatching loki quick..."
+    if echo "$babysitter_output" | grep -q "ACTION: FIX_REVIEW_COMMENTS" && echo "$babysitter_output" | grep -q "PR #$pr_number"; then
+      echo "  Unresolved review threads on PR #$pr_number. Dispatching loki quick..."
       if command -v loki &>/dev/null; then
         loki quick "Read and address all review comments on PR #$pr_number. Run 'gh pr view $pr_number --comments' to see them. Fix each issue, commit, and push." 2>/dev/null || true
         QUICK_FIXES=$((QUICK_FIXES + 1))
@@ -317,8 +349,8 @@ babysit_pr() {
       continue
     fi
 
-    if echo "$babysitter_output" | grep -q "ACTION: FIX_CI_FAILURE"; then
-      echo "  CI failing. Dispatching loki quick to fix..."
+    if echo "$babysitter_output" | grep -q "ACTION: FIX_CI_FAILURE" && echo "$babysitter_output" | grep -q "PR #$pr_number"; then
+      echo "  CI failing on PR #$pr_number. Dispatching loki quick to fix..."
       if command -v loki &>/dev/null; then
         loki quick "CI checks are failing on PR #$pr_number. Investigate and fix the failures." 2>/dev/null || true
         QUICK_FIXES=$((QUICK_FIXES + 1))
@@ -334,8 +366,8 @@ babysit_pr() {
       continue
     fi
 
-    if echo "$babysitter_output" | grep -q "ACTION: REBASE_PR"; then
-      echo "  Merge conflict. Attempting rebase..."
+    if echo "$babysitter_output" | grep -q "ACTION: REBASE_PR" && echo "$babysitter_output" | grep -q "PR #$pr_number"; then
+      echo "  Merge conflict on PR #$pr_number. Attempting rebase..."
       local pr_branch
       pr_branch=$(gh pr view "$pr_number" --json headRefName --jq '.headRefName' 2>/dev/null || echo "")
       if [ -n "$pr_branch" ]; then
@@ -473,6 +505,13 @@ if [ -f "$STATE_FILE" ]; then
           RETRY_STATUS=$(check_loki_status | jq -r '.status // "unknown"')
           if [ "$RETRY_STATUS" = "running" ]; then
             monitor_session "${PREV_CHANGE:-unknown}" || true
+            run_post_session "${PREV_CHANGE:-unknown}"
+            OPEN_PR=$(check_open_prs)
+            if [ -n "$OPEN_PR" ]; then
+              if babysit_pr "$OPEN_PR"; then
+                ISSUES_RESOLVED=$((ISSUES_RESOLVED + 1))
+              fi
+            fi
           fi
         fi
         ;;
@@ -579,8 +618,8 @@ while [ "$ITERATION" -lt "$MAX_ITERATIONS" ]; do
   # Step 7: POST-SESSION
   run_post_session "issue-$ISSUE_NUMBER"
 
-  # Step 8: BABYSIT PR
-  OPEN_PR=$(check_open_prs)
+  # Step 8: BABYSIT PR (scoped to current issue)
+  OPEN_PR=$(check_open_prs "$ISSUE_NUMBER")
   if [ -n "$OPEN_PR" ]; then
     if babysit_pr "$OPEN_PR"; then
       ISSUES_RESOLVED=$((ISSUES_RESOLVED + 1))

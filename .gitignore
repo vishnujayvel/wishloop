@@ -10,6 +10,9 @@ openspec/changes/
 # Plans and design docs (working drafts, not shipping artifacts)
 docs/plans/
 
+# Wishloop runtime state (generated per session, not shipping artifacts)
+.wishloop/state.json
+
 # Temp files
 *.log
 .DS_Store
