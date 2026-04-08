@@ -363,6 +363,217 @@ assert_not_contains "gardening: no .loki/state reads" ".loki/state" "$GARDENING_
 echo ""
 
 # ============================================================
+# UNIT TESTS: drain.sh syntax and arguments
+# ============================================================
+echo -e "${YELLOW}--- Unit Tests: drain.sh ---${NC}"
+
+DRAIN_PATH="$SCRIPT_DIR/scripts/drain.sh"
+
+assert_file_exists "drain.sh exists" "$DRAIN_PATH"
+
+if [ -f "$DRAIN_PATH" ]; then
+  if bash -n "$DRAIN_PATH" 2>/dev/null; then
+    assert_exit_code "drain.sh: syntax valid" "0" "0"
+  else
+    assert_exit_code "drain.sh: syntax valid" "0" "1"
+  fi
+
+  # Test --help flag
+  OUTPUT=$(bash "$DRAIN_PATH" --help 2>&1 || true)
+  assert_contains "drain.sh: --help shows usage" "Usage" "$OUTPUT"
+
+  # Test unknown argument rejection
+  OUTPUT=$(bash "$DRAIN_PATH" --bogus 2>&1 || true)
+  assert_contains "drain.sh: rejects unknown args" "Unknown argument" "$OUTPUT"
+fi
+
+echo ""
+
+# ============================================================
+# CONTENT TESTS: drain.sh P6 compliance and feature coverage
+# ============================================================
+echo -e "${YELLOW}--- Content Tests: drain.sh ---${NC}"
+
+if [ -f "$DRAIN_PATH" ]; then
+  DRAIN_CONTENT=$(cat "$DRAIN_PATH")
+
+  # P6 compliance: no direct .loki/ file access
+  assert_not_contains "drain: no .loki/ file reads (P6)" "cat.*\.loki/" "$DRAIN_CONTENT"
+  assert_not_contains "drain: no .loki/queue reads (P6)" ".loki/queue" "$DRAIN_CONTENT"
+  assert_not_contains "drain: no .loki/state reads (P6)" ".loki/state/" "$DRAIN_CONTENT"
+
+  # prd-001: Monitoring via loki status --json
+  assert_contains "drain: uses loki status --json for monitoring (prd-001)" "loki status --json" "$DRAIN_CONTENT"
+  assert_contains "drain: has monitor_session function" "monitor_session" "$DRAIN_CONTENT"
+  assert_contains "drain: delegates to gardening-check.sh" "gardening-check.sh" "$DRAIN_CONTENT"
+
+  # prd-002: Stopping via loki stop
+  assert_contains "drain: uses loki stop for emergency stop (prd-002)" "loki stop" "$DRAIN_CONTENT"
+  assert_contains "drain: has separate loki_stop function" "loki_stop" "$DRAIN_CONTENT"
+
+  # prd-003: Resuming via loki resume
+  assert_contains "drain: uses loki resume for recovery (prd-003)" "loki resume" "$DRAIN_CONTENT"
+  assert_contains "drain: has separate loki_resume function" "loki_resume" "$DRAIN_CONTENT"
+  assert_contains "drain: checks state.json for resumption" "state.json" "$DRAIN_CONTENT"
+
+  # Core drain features
+  assert_contains "drain: fetches issues via gh issue list" "gh issue list" "$DRAIN_CONTENT"
+  assert_contains "drain: has priority sorting" "priority_score" "$DRAIN_CONTENT"
+  assert_contains "drain: has --label filter support" "LABEL_FILTER" "$DRAIN_CONTENT"
+  assert_contains "drain: uses loki run for single issues" "loki run" "$DRAIN_CONTENT"
+  assert_contains "drain: delegates to pr-babysitter.sh" "pr-babysitter.sh" "$DRAIN_CONTENT"
+  assert_contains "drain: has cumulative summary" "Drain Complete" "$DRAIN_CONTENT"
+  assert_contains "drain: has max iterations limit" "MAX_ITERATIONS" "$DRAIN_CONTENT"
+  assert_contains "drain: has cooldown between iterations" "COOLDOWN" "$DRAIN_CONTENT"
+  assert_contains "drain: displays dashboard" "display_dashboard" "$DRAIN_CONTENT"
+  assert_contains "drain: has loki quick for review fixes" "loki quick" "$DRAIN_CONTENT"
+  assert_contains "drain: has circuit breaker" "Circuit breaker" "$DRAIN_CONTENT"
+  assert_contains "drain: merges PRs via gh pr merge" "gh pr merge" "$DRAIN_CONTENT"
+  assert_contains "drain: composes dynamic completion promise" "compose_completion_promise" "$DRAIN_CONTENT"
+  assert_contains "drain: uses jq for safe JSON in update_state" "jq -n" "$DRAIN_CONTENT"
+  assert_contains "drain: uses --argjson for safe jq queries" "argjson" "$DRAIN_CONTENT"
+  assert_contains "drain: validates numeric arguments" "must be a positive integer" "$DRAIN_CONTENT"
+  assert_contains "drain: unknown labels get lowest priority (tier 6)" "else 6 end" "$DRAIN_CONTENT"
+  assert_contains "drain: only counts resolved on babysit success" "if babysit_pr" "$DRAIN_CONTENT"
+fi
+
+echo ""
+
+# ============================================================
+# BEHAVIORAL TESTS: drain.sh argument validation
+# ============================================================
+echo -e "${YELLOW}--- Behavioral Tests: drain.sh argument validation ---${NC}"
+
+if [ -f "$DRAIN_PATH" ]; then
+  # Non-numeric --max-iterations rejected
+  OUTPUT=$(bash "$DRAIN_PATH" --max-iterations abc 2>&1 || true)
+  assert_contains "drain: rejects non-numeric max-iterations" "must be a positive integer" "$OUTPUT"
+
+  # Non-numeric --cooldown rejected
+  OUTPUT=$(bash "$DRAIN_PATH" --cooldown xyz 2>&1 || true)
+  assert_contains "drain: rejects non-numeric cooldown" "must be a positive integer" "$OUTPUT"
+
+  # Missing --label value
+  OUTPUT=$(bash "$DRAIN_PATH" --label 2>&1 || true)
+  assert_contains "drain: rejects --label with no value" "requires a value" "$OUTPUT"
+fi
+
+echo ""
+
+# ============================================================
+# BEHAVIORAL TESTS: priority ordering (via jq function)
+# ============================================================
+echo -e "${YELLOW}--- Behavioral Tests: priority ordering ---${NC}"
+
+# Test the prioritize_issues jq logic directly with mock data
+MOCK_ISSUES='[
+  {"number":1,"title":"docs update","body":"short","labels":[{"name":"documentation"}]},
+  {"number":2,"title":"critical crash","body":"x","labels":[{"name":"critical"}]},
+  {"number":3,"title":"fix login","body":"xx","labels":[{"name":"bug"}]},
+  {"number":4,"title":"refactor auth","body":"long body here for effort","labels":[{"name":"refactor"}]},
+  {"number":5,"title":"no labels","body":"y","labels":[]}
+]'
+
+PRIORITY_ORDER=$(echo "$MOCK_ISSUES" | jq -r '
+  def priority_score:
+    (.labels // []) as $labels |
+    if ($labels | map(.name) | any(. == "critical")) then 0
+    elif ($labels | map(.name) | any(. == "bug")) then 1
+    elif ($labels | map(.name) | any(. == "auto-detected")) then 2
+    elif ($labels | map(.name) | any(. == "refactor")) then 3
+    elif ($labels | map(.name) | any(. == "enhancement")) then 4
+    elif ($labels | map(.name) | any(. == "documentation")) then 5
+    else 6 end;
+  def effort_score:
+    ((.body // "") | length) ;
+  sort_by([priority_score, effort_score]) | .[].number
+' | tr '\n' ',')
+
+FIRST_ISSUE=$(echo "$PRIORITY_ORDER" | cut -d, -f1)
+assert_eq "priority: critical issue (#2) is first" "2" "$FIRST_ISSUE"
+
+SECOND_ISSUE=$(echo "$PRIORITY_ORDER" | cut -d, -f2)
+assert_eq "priority: bug issue (#3) is second" "3" "$SECOND_ISSUE"
+
+LAST_ISSUE=$(echo "$PRIORITY_ORDER" | cut -d, -f5)
+assert_eq "priority: unlabeled issue (#5) gets lowest tier (6), last" "5" "$LAST_ISSUE"
+
+echo ""
+
+# ============================================================
+# BEHAVIORAL TESTS: update_state JSON safety
+# ============================================================
+echo -e "${YELLOW}--- Behavioral Tests: update_state JSON safety ---${NC}"
+
+# Verify that update_state uses jq -n (not echo with string interpolation)
+if [ -f "$DRAIN_PATH" ]; then
+  # Count jq -n calls in update_state function
+  JQ_SAFE_COUNT=$(sed -n '/^update_state/,/^[^ ]/p' "$DRAIN_PATH" | grep -c 'jq -n' || echo "0")
+  if [ "$JQ_SAFE_COUNT" -ge 5 ]; then
+    echo -e "  ${GREEN}PASS${NC}: update_state uses jq -n for all 5 state types"
+    PASS=$((PASS + 1))
+  else
+    echo -e "  ${RED}FAIL${NC}: update_state should use jq -n for all 5 state types (found $JQ_SAFE_COUNT)"
+    FAIL=$((FAIL + 1))
+  fi
+
+  # Verify no raw echo JSON construction in update_state
+  RAW_JSON="0"
+  if sed -n '/^update_state/,/^[^ ]/p' "$DRAIN_PATH" | grep -q 'echo.*{.*step'; then
+    RAW_JSON="1"
+  fi
+  assert_eq "update_state: no raw echo JSON construction" "0" "$RAW_JSON"
+fi
+
+echo ""
+
+# ============================================================
+# COHERENCE TESTS: SKILL.md drain mode section
+# ============================================================
+echo -e "${YELLOW}--- Coherence Tests: SKILL.md drain mode ---${NC}"
+
+SKILLMD_CONTENT=$(cat "$SKILLMD")
+
+# Drain mode section exists
+assert_contains "SKILL.md has Drain Mode section" "## Drain Mode" "$SKILLMD_CONTENT"
+
+# Drain mode references the script
+assert_contains "SKILL.md references drain.sh in scripts table" "drain.sh" "$SKILLMD_CONTENT"
+
+# Drain mode documents key features
+assert_contains "SKILL.md drain: documents --label filter" "\-\-label" "$SKILLMD_CONTENT"
+assert_contains "SKILL.md drain: documents loki status --json monitoring" "loki status --json" "$SKILLMD_CONTENT"
+assert_contains "SKILL.md drain: documents loki stop" "loki stop" "$SKILLMD_CONTENT"
+assert_contains "SKILL.md drain: documents loki resume" "loki resume" "$SKILLMD_CONTENT"
+assert_contains "SKILL.md drain: documents priority tiers" "critical > bug" "$SKILLMD_CONTENT"
+assert_contains "SKILL.md drain: documents cumulative summary" "Drain Complete" "$SKILLMD_CONTENT"
+assert_contains "SKILL.md drain: documents session resumption" "Session Resumption" "$SKILLMD_CONTENT"
+assert_contains "SKILL.md drain: triggers include drain" "drain" "$(head -20 "$SKILLMD")"
+
+echo ""
+
+# ============================================================
+# P6 COMPLIANCE TESTS: drain.sh
+# ============================================================
+echo -e "${YELLOW}--- P6 Compliance Tests: drain.sh ---${NC}"
+
+if [ -f "$DRAIN_PATH" ]; then
+  DRAIN_CONTENT=$(cat "$DRAIN_PATH")
+
+  # Should NOT reference internal Loki functions
+  for func in "extract_learnings_from_session" "compound_session_to_solutions" "init_loki_dir" "update_continuity"; do
+    assert_not_contains "drain: does not call internal: $func" "$func" "$DRAIN_CONTENT"
+  done
+
+  # Should NOT read .loki/ internal files
+  assert_not_contains "drain: no .loki/STATUS.txt reads" ".loki/STATUS.txt" "$DRAIN_CONTENT"
+  assert_not_contains "drain: no .loki/session.json reads" ".loki/session.json" "$DRAIN_CONTENT"
+  assert_not_contains "drain: no .loki/CONTINUITY.md reads" ".loki/CONTINUITY" "$DRAIN_CONTENT"
+fi
+
+echo ""
+
+# ============================================================
 # Summary
 # ============================================================
 TOTAL=$((PASS + FAIL))

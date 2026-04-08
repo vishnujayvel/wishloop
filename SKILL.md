@@ -9,7 +9,7 @@ description: |
   Triggers on: "openspec", "loki", "SDLC", "run the loop", "wishloop", "worktrunk" + parallel context,
   "fix these bugs" + loki context, "build X from scratch" + openspec context,
   "continue where we left off" with openspec/changes/, greenfield projects with openspec/ directory,
-  "archive the change", "verify and triage".
+  "archive the change", "verify and triage", "drain", "wishloop --drain".
 
   DO NOT USE FOR one-off brainstorming (use superpowers:brainstorming),
   web/topic research (use deep-research), Kiro-based SDLC (use pdlc-autopilot),
@@ -38,6 +38,81 @@ Thin session manager for Loki Mode. Classify work, spec it via OpenSpec CLI, con
 | **P4: Strong Proposals, Thin Wrapper** | Quality of the Loki session = quality of the proposal. Invest in enrichment. |
 | **P5: Upstream When Generic** | If a Wishloop feature is generic, contribute upstream. Plan B after 2 weeks. |
 | **P6: External Interface Only** | Wishloop calls ONLY Loki's public CLI. NEVER internal run.sh functions. Zero `.loki/` file coupling. |
+
+---
+
+## Drain Mode
+
+Autonomous loop that processes ALL open GitHub issues until the backlog is empty. Wraps v2 Steps 1-6 in a fetch-prioritize-launch-monitor-babysit cycle.
+
+### Invocation
+
+```bash
+bash <skill-path>/scripts/drain.sh                          # drain all open issues
+bash <skill-path>/scripts/drain.sh --label bug              # drain only bugs
+bash <skill-path>/scripts/drain.sh --label refactor --max-iterations 3
+```
+
+Or via the skill trigger: `wishloop --drain` / `wishloop --drain --label bug`
+
+### How It Works
+
+```text
+FETCH (gh issue list) → STOP? (zero = exit) → PRIORITIZE → RESUME? →
+  PICK → CLASSIFY → LAUNCH (loki run #N --pr) →
+  MONITOR (loki status --json, 5min polls) →
+  POST (docs, learnings, archival) →
+  BABYSIT (CodeRabbit → loki quick → merge) →
+LOOP
+```
+
+### Key Design: GitHub Issues ARE the State
+
+No local backlog file. GitHub Issues are the single source of truth:
+- Open issues = work remaining
+- Closed issues = work done  
+- Issue labels = priority and filtering
+- PR state = current work-in-progress
+
+### Session Resumption
+
+On re-invoke, drain mode checks:
+1. `.wishloop/state.json` — what step were we in?
+2. `gh pr list --state open` — if any, resume at BABYSIT
+3. `loki status --json` — if running, resume at MONITOR
+4. If neither, fetch open issues and start fresh
+
+### Monitoring (via `loki status --json`)
+
+The drain loop polls `loki status --json` every 5 minutes to detect:
+- `completed` → proceed to post-session
+- `stopped` → proceed to post-session
+- `running` → continue polling (with stall detection)
+- `unknown` → attempt `loki resume`, then crash recovery
+
+### Emergency Stop (`loki stop`)
+
+If the session is stalled (iteration unchanged for 15+ minutes), drain mode runs:
+```bash
+loki stop     # Kill stalled session
+loki resume   # Restart from last checkpoint
+```
+
+### Priority Tiers
+
+```text
+critical > bug > auto-detected > refactor > enhancement > documentation
+Within same tier: smaller effort first (body length heuristic)
+```
+
+### Cumulative Summary (on exit)
+
+```text
+=== Drain Complete ===
+Iterations: 3 | Duration: 47 min | Commits: 12 | Files: 8
+Issues at start: 5 | Resolved: 4 | Filed: 1 | Remaining: 2
+Loki sessions: 3 | PRs merged: 4 | Quick fixes: 2
+```
 
 ---
 
@@ -133,18 +208,27 @@ If `loki doctor` fails: print diagnostic output. Do not proceed until doctor pas
 
 ### 3c. Session configuration
 
-Store in `.wishloop/loki.env` (sourced before every launch):
+Source the static config and compose the completion promise dynamically:
 
 ```bash
-# .wishloop/loki.env
-LOKI_GITHUB_PR=true
-LOKI_GITHUB_SYNC=true
-LOKI_COUNCIL_ENABLED=true
-LOKI_AUDIT_LOG=true
-LOKI_COMPLETION_PROMISE="PR created with all tests passing and no HIGH/CRITICAL review findings"
+# Source static process config
+set -a && source .wishloop/loki.env && set +a
+
+# Extract task-specific exit criteria from the proposal
+TASK_CRITERIA=""
+if [ -f "$PROPOSAL_PATH" ]; then
+  TASK_CRITERIA=$(sed -n '/## Exit Criteria/,/^## /p' "$PROPOSAL_PATH" | grep -E '^\s*[-*]' | sed 's/^[\s*-]*//' | tr '\n' '; ' | sed 's/; $//')
+fi
+
+# Compose full promise: task criteria + process bar
+if [ -n "$TASK_CRITERIA" ]; then
+  export LOKI_COMPLETION_PROMISE="${TASK_CRITERIA}. THEN: ${WISHLOOP_PROCESS_BAR}"
+else
+  export LOKI_COMPLETION_PROMISE="${WISHLOOP_PROCESS_BAR}"
+fi
 ```
 
-Source before launch: `set -a && source .wishloop/loki.env && set +a`
+This ensures every session knows both WHAT to build (from the proposal) and HOW to deliver it (PR + review + respond).
 
 ### 3d. CLAUDE.md preparation
 
@@ -152,15 +236,26 @@ Ensure the project's CLAUDE.md contains:
 - Build/test/lint commands
 - Project conventions
 - Any OpenSpec spec references
-- Learnings format instruction (fixes Loki's compound learning pipeline):
+- Learnings format instruction and PR review handling:
 
 ```markdown
 ## Loki Session Rules
+
+### Learnings
 When you encounter errors, unexpected behavior, or learn something non-obvious,
 ALWAYS update CONTINUITY.md's "## Mistakes & Learnings" section with bullet points:
 - **What Failed:** [specific error]
 - **Why It Failed:** [root cause]
 - **How to Prevent:** [concrete action]
+
+### PR Review Handling
+After creating a PR, you MUST:
+1. Wait for CodeRabbit to post its review (poll `gh pr checks` every 90 seconds)
+2. Read all review comments: `gh pr view <N> --comments`
+3. For each comment: fix the issue in code, then reply to the comment thread
+   with what you changed: `gh pr review <N> --comment --body "Fixed: <description>"`
+4. Push all fixes, then wait for CodeRabbit to re-review
+5. Only declare completion when all review threads are resolved
 ```
 
 ### 3e. Worktrunk configuration (if available)
@@ -237,6 +332,48 @@ ITERATION=$(echo "$STATUS_JSON" | jq -r '.iteration')
 5. Or: restart from Step 3 (clean launch)
 
 **Emergency stop:** `loki stop` — kills a stalled session immediately.
+
+### Wishloop Status Dashboard
+
+When checking session status, display this combined view showing what Wishloop configured and how Loki is progressing:
+
+```bash
+# Gather data
+STATUS_JSON=$(loki status --json 2>/dev/null)
+STATE_JSON=$(cat .wishloop/state.json 2>/dev/null)
+PROMISE=$(echo "$LOKI_COMPLETION_PROMISE" | fold -w 60)
+
+# Display
+echo "╔══════════════════════════════════════════════════════════╗"
+echo "║  WISHLOOP STATUS                                        ║"
+echo "╠══════════════════════════════════════════════════════════╣"
+echo "║  Change:  $(echo "$STATE_JSON" | jq -r '.change // "unknown"')"
+echo "║  Step:    $(echo "$STATE_JSON" | jq -r '.step // "unknown"')"
+echo "║  Started: $(echo "$STATE_JSON" | jq -r '.startedAt // "unknown"')"
+echo "╠══════════════════════════════════════════════════════════╣"
+echo "║  LOKI SESSION                                           ║"
+echo "║  Status:    $(echo "$STATUS_JSON" | jq -r '.status')"
+echo "║  Phase:     $(echo "$STATUS_JSON" | jq -r '.phase')"
+echo "║  Iteration: $(echo "$STATUS_JSON" | jq -r '.iteration')"
+echo "║  Tasks:     $(echo "$STATUS_JSON" | jq -r '.task_counts.completed')/$(echo "$STATUS_JSON" | jq -r '.task_counts.total') completed"
+echo "║  PID:       $(echo "$STATUS_JSON" | jq -r '.pid')"
+echo "╠══════════════════════════════════════════════════════════╣"
+echo "║  COMPLETION PROMISE                                     ║"
+echo "║  $PROMISE"
+echo "╠══════════════════════════════════════════════════════════╣"
+echo "║  PROPOSAL                                               ║"
+echo "║  $(head -1 "$PROPOSAL_PATH" 2>/dev/null || echo 'N/A')"
+echo "║  Exit criteria: $(grep -c '^\s*[-*]' <(sed -n '/## Exit Criteria/,/^## /p' "$PROPOSAL_PATH" 2>/dev/null) 2>/dev/null || echo '0') items"
+echo "╠══════════════════════════════════════════════════════════╣"
+echo "║  PR STATUS                                              ║"
+echo "║  $(gh pr list --json number,title,state --jq '.[0] | "#\(.number) \(.title) [\(.state)]"' 2>/dev/null || echo 'No open PR')"
+echo "╚══════════════════════════════════════════════════════════╝"
+```
+
+This dashboard is displayed:
+- At the start of each gardening check (Step 3.5)
+- When the user asks for status
+- In the cumulative summary at loop exit
 
 **Action directives from monitoring:**
 
@@ -416,6 +553,7 @@ Learnings captured: {N}
 
 | Script | Purpose |
 |--------|---------|
+| `scripts/drain.sh [--label <X>] [--max-iterations <N>] [--cooldown <seconds>]` | Autonomous drain loop: fetch, prioritize, launch, monitor, babysit, merge, repeat |
 | `scripts/gardening-check.sh <dir> <change>` | Lightweight session monitoring via `loki status --json` |
 | `scripts/capture-run.sh <dir> <change> <hash> <time> <pid>` | Generate run instance JSON |
 | `scripts/enrich-proposal.sh <dir> <proposal-path>` | Auto-enrich proposal with project context (Step 2b) |
