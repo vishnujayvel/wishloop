@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Test suite for wishloop scripts
+# Test suite for Wishloop v2 scripts
 # Usage: bash tests/test-scripts.sh
 # Exit code: 0 = all pass, 1 = failures
 
@@ -64,6 +64,17 @@ assert_file_exists() {
   fi
 }
 
+assert_file_not_exists() {
+  local test_name="$1" filepath="$2"
+  if [ ! -f "$filepath" ]; then
+    echo -e "  ${GREEN}PASS${NC}: $test_name"
+    PASS=$((PASS + 1))
+  else
+    echo -e "  ${RED}FAIL${NC}: $test_name — file should not exist: $filepath"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
 assert_exit_code() {
   local test_name="$1" expected="$2" actual="$3"
   if [ "$expected" = "$actual" ]; then
@@ -84,7 +95,7 @@ trap 'rm -rf "$TEMP_DIR"' EXIT
 setup_mock_repo() {
   local repo="$TEMP_DIR/mock-repo"
   rm -rf "$repo"
-  mkdir -p "$repo/src" "$repo/tests" "$repo/.loki" "$repo/.wishloop" "$repo/docs/plans"
+  mkdir -p "$repo/src" "$repo/tests" "$repo/.wishloop" "$repo/docs/plans"
 
   cd "$repo"
   git init -q
@@ -110,7 +121,7 @@ CLAUDEMD
 }
 
 echo "============================================"
-echo "  Wishloop Test Suite"
+echo "  Wishloop v2 Test Suite"
 echo "============================================"
 echo ""
 
@@ -119,7 +130,7 @@ echo ""
 # ============================================================
 echo -e "${YELLOW}--- Unit Tests: Syntax Validation ---${NC}"
 
-for script in gardening-check.sh enrich-proposal.sh pr-babysitter.sh capture-run.sh inject-learnings.sh; do
+for script in gardening-check.sh enrich-proposal.sh pr-babysitter.sh capture-run.sh; do
   SCRIPT_PATH="$SCRIPT_DIR/scripts/$script"
   if [ -f "$SCRIPT_PATH" ]; then
     if bash -n "$SCRIPT_PATH" 2>/dev/null; then
@@ -131,6 +142,15 @@ for script in gardening-check.sh enrich-proposal.sh pr-babysitter.sh capture-run
     echo -e "  ${YELLOW}SKIP${NC}: $script not found"
   fi
 done
+
+echo ""
+
+# ============================================================
+# UNIT TESTS: Removed scripts should not exist
+# ============================================================
+echo -e "${YELLOW}--- Unit Tests: Removed Scripts ---${NC}"
+
+assert_file_not_exists "inject-learnings.sh removed (replaced by Loki native injection)" "$SCRIPT_DIR/scripts/inject-learnings.sh"
 
 echo ""
 
@@ -150,58 +170,42 @@ assert_contains "enrich-proposal.sh rejects missing file" "not found" "$OUTPUT"
 echo ""
 
 # ============================================================
-# INTEGRATION TESTS: gardening-check.sh
+# INTEGRATION TESTS: gardening-check.sh (v2 — loki status --json)
 # ============================================================
 echo -e "${YELLOW}--- Integration Tests: gardening-check.sh ---${NC}"
 
 REPO=$(setup_mock_repo)
 
-# Test basic check on a normal repo
+# Test basic check on a repo (loki may not be installed, but script should handle gracefully)
 OUTPUT=$(bash "$SCRIPT_DIR/scripts/gardening-check.sh" "$REPO" "test-change" 2>&1 || true)
-assert_contains "gardening: outputs timestamp header" "Gardening Check" "$OUTPUT"
+assert_contains "gardening: outputs session monitor header" "Session Monitor" "$OUTPUT"
+assert_contains "gardening: shows change name" "test-change" "$OUTPUT"
+assert_contains "gardening: shows loki status field" "Loki status" "$OUTPUT"
+assert_contains "gardening: shows iteration field" "Iteration" "$OUTPUT"
+assert_contains "gardening: shows tasks field" "Tasks" "$OUTPUT"
 assert_contains "gardening: shows recent commits" "initial commit" "$OUTPUT"
-assert_contains "gardening: shows active agents" "Active agents" "$OUTPUT"
-assert_contains "gardening: shows build status" "Build:" "$OUTPUT"
-assert_contains "gardening: shows conflicts" "Conflicts:" "$OUTPUT"
 
-# Test journal entry creation
-assert_file_exists "gardening: creates journal file" "$REPO/docs/plans/pipeline-journal.md"
-
-# Test completion detection (mock STATUS.txt)
-# Note: We override the agent count check by temporarily replacing the ps-based detection.
-# The gardening script checks AGENT_COUNT -eq 0 AND STATUS=complete.
-# In a test environment, real Claude agents may be running, so we test the
-# individual output sections instead of relying on the compound condition.
-echo "COMPLETE - All tasks finished" > "$REPO/.loki/STATUS.txt"
-
-# Create a wrapper that forces AGENT_COUNT=0 for testing
-WRAPPER="$TEMP_DIR/gardening-wrapper.sh"
-cat > "$WRAPPER" << 'WRAPEOF'
-#!/usr/bin/env bash
-# Override ps to return 0 agents for testing
-ps() { echo ""; }
-export -f ps
-source "$1" "$2" "$3"
-WRAPEOF
-chmod +x "$WRAPPER"
-
-# Use a simpler approach: directly test the script's output with the real conditions
-# The script outputs "COMPLETION DETECTED" when agent_count=0 and status=complete
-# We verify the status reading works, and the action logic works
-OUTPUT=$(bash "$SCRIPT_DIR/scripts/gardening-check.sh" "$REPO" "test-change" 2>&1 || true)
-assert_contains "gardening: reads STATUS.txt" "COMPLETE - All tasks finished" "$OUTPUT"
-
-# Test that the script's completion logic is wired correctly by checking
-# the source code for the ACTION output
+# Test P6 compliance: script should NOT reference .loki/ internal files
 SCRIPT_CONTENT=$(cat "$SCRIPT_DIR/scripts/gardening-check.sh")
-assert_contains "gardening: has ADVANCE_TO_PHASE_7 logic" "ACTION: ADVANCE_TO_PHASE_7" "$SCRIPT_CONTENT"
-assert_contains "gardening: has INVESTIGATE_EXIT logic" "ACTION: INVESTIGATE_EXIT" "$SCRIPT_CONTENT"
-assert_contains "gardening: updates state.json on completion" "state.json" "$SCRIPT_CONTENT"
+assert_not_contains "gardening: no STATUS.txt access (P6)" "STATUS.txt" "$SCRIPT_CONTENT"
+assert_not_contains "gardening: no .loki/ file reads (P6)" "cat.*\.loki/" "$SCRIPT_CONTENT"
+assert_contains "gardening: uses loki status --json (P6)" "loki status --json" "$SCRIPT_CONTENT"
 
-# Test non-completion status reading
-echo "Running task 3 of 5" > "$REPO/.loki/STATUS.txt"
-OUTPUT=$(bash "$SCRIPT_DIR/scripts/gardening-check.sh" "$REPO" "test-change" 2>&1 || true)
-assert_contains "gardening: reads non-complete status" "Running task 3 of 5" "$OUTPUT"
+# Test action directive names (v2 uses SESSION_COMPLETE, not ADVANCE_TO_PHASE_7)
+assert_contains "gardening: has SESSION_COMPLETE action" "ACTION: SESSION_COMPLETE" "$SCRIPT_CONTENT"
+assert_contains "gardening: has SESSION_STALLED action" "ACTION: SESSION_STALLED" "$SCRIPT_CONTENT"
+assert_contains "gardening: has SESSION_CRASHED action" "ACTION: SESSION_CRASHED" "$SCRIPT_CONTENT"
+assert_not_contains "gardening: no v1 ADVANCE_TO_PHASE_7 reference" "ADVANCE_TO_PHASE_7" "$SCRIPT_CONTENT"
+
+# Test state.json update on completion
+assert_contains "gardening: updates state.json" "state.json" "$SCRIPT_CONTENT"
+
+# Test stall detection logic
+assert_contains "gardening: has stall detection" "stall" "$SCRIPT_CONTENT"
+
+# Test loki stop/resume references (emergency controls)
+assert_contains "gardening: references loki stop" "loki stop" "$SCRIPT_CONTENT"
+assert_contains "gardening: references loki resume" "loki resume" "$SCRIPT_CONTENT"
 
 echo ""
 
@@ -244,26 +248,27 @@ echo ""
 # ============================================================
 echo -e "${YELLOW}--- Integration Tests: pr-babysitter.sh ---${NC}"
 
-# Test single-check mode with no open PRs (needs gh but may not be in a repo context)
-# We test the script's output format rather than actual GH API calls
 OUTPUT=$(bash -n "$SCRIPT_DIR/scripts/pr-babysitter.sh" 2>&1)
 assert_exit_code "pr-babysitter: syntax valid" "0" "$?"
 
 echo ""
 
 # ============================================================
-# COHERENCE TESTS: SKILL.md validation
+# COHERENCE TESTS: SKILL.md v2 validation
 # ============================================================
-echo -e "${YELLOW}--- Coherence Tests: SKILL.md ---${NC}"
+echo -e "${YELLOW}--- Coherence Tests: SKILL.md v2 ---${NC}"
 
 SKILLMD="$SCRIPT_DIR/SKILL.md"
 
 # Check all referenced scripts exist
-for script in gardening-check.sh capture-run.sh inject-learnings.sh enrich-proposal.sh pr-babysitter.sh; do
+for script in gardening-check.sh capture-run.sh enrich-proposal.sh pr-babysitter.sh; do
   if grep -q "$script" "$SKILLMD"; then
     assert_file_exists "SKILL.md references existing script: $script" "$SCRIPT_DIR/scripts/$script"
   fi
 done
+
+# Verify inject-learnings.sh is NOT referenced in SKILL.md
+assert_not_contains "SKILL.md does not reference inject-learnings.sh" "inject-learnings" "$(cat "$SKILLMD")"
 
 # Check all referenced templates exist
 for template in audit.md lld.md hld.md research.md docs.md; do
@@ -272,36 +277,50 @@ for template in audit.md lld.md hld.md research.md docs.md; do
   fi
 done
 
-# Check phase ordering — phases should appear in order
-PHASE_LINES=$(grep -n "^## Phase" "$SKILLMD" | head -20)
-PREV_PHASE=0
-PHASE_ORDER_OK=true
-while IFS=: read -r line_num line_text; do
-  PHASE_NUM=$(echo "$line_text" | grep -oE '[0-9]+' | head -1)
-  if [ -n "$PHASE_NUM" ] && [ "$PHASE_NUM" -lt "$PREV_PHASE" ]; then
-    PHASE_ORDER_OK=false
+# Check v2 step ordering — steps should appear in order
+STEP_LINES=$(grep -n "^## Step" "$SKILLMD" | head -20)
+PREV_STEP=0
+STEP_ORDER_OK=true
+while IFS=: read -r _ line_text; do
+  STEP_NUM=$(echo "$line_text" | grep -oE '[0-9]+' | head -1)
+  if [ -n "$STEP_NUM" ] && [ "$STEP_NUM" -lt "$PREV_STEP" ]; then
+    STEP_ORDER_OK=false
   fi
-  PREV_PHASE="${PHASE_NUM:-$PREV_PHASE}"
-done <<< "$PHASE_LINES"
-if [ "$PHASE_ORDER_OK" = true ]; then
-  echo -e "  ${GREEN}PASS${NC}: SKILL.md phases are in sequential order"
+  PREV_STEP="${STEP_NUM:-$PREV_STEP}"
+done <<< "$STEP_LINES"
+if [ "$STEP_ORDER_OK" = true ]; then
+  echo -e "  ${GREEN}PASS${NC}: SKILL.md steps are in sequential order"
   PASS=$((PASS + 1))
 else
-  echo -e "  ${RED}FAIL${NC}: SKILL.md phases are out of order"
+  echo -e "  ${RED}FAIL${NC}: SKILL.md steps are out of order"
   FAIL=$((FAIL + 1))
 fi
 
-# Check Phase 6 has continuation triggers
-assert_contains "SKILL.md Phase 6 has ACTION directives" "ACTION: ADVANCE_TO_PHASE_7" "$(cat "$SKILLMD")"
+# v2 uses Steps, not Phases — verify no Phase references remain
+assert_not_contains "SKILL.md uses Steps not Phases (v2)" "^## Phase" "$(cat "$SKILLMD")"
 
-# Check Phase 3b exists
-assert_contains "SKILL.md has Phase 3b" "Phase 3b" "$(cat "$SKILLMD")"
+# Check Step 2b has enrichment
+assert_contains "SKILL.md Step 2 has enrichment" "enrich-proposal" "$(cat "$SKILLMD")"
 
-# Check Phase 8b exists
-assert_contains "SKILL.md has Phase 8b (PR babysitter)" "Phase 8b" "$(cat "$SKILLMD")"
+# Check Step 3.5 has monitoring via loki status
+assert_contains "SKILL.md Step 3.5 uses loki status --json" "loki status --json" "$(cat "$SKILLMD")"
 
-# Check quality gate exists
-assert_contains "SKILL.md has proposal quality gate" "Proposal Quality Gate" "$(cat "$SKILLMD")"
+# Check Step 5 has PR babysitter
+assert_contains "SKILL.md Step 5 has PR babysitter" "pr-babysitter" "$(cat "$SKILLMD")"
+
+# Check Step 2c has proposal quality gate
+assert_contains "SKILL.md has proposal quality gate" "quality gate" "$(cat "$SKILLMD")"
+
+# Check P6 principle is documented
+assert_contains "SKILL.md documents P6: External Interface Only" "External Interface Only" "$(cat "$SKILLMD")"
+
+# Check Loki Commands table exists
+assert_contains "SKILL.md has Loki Commands table" "Loki Commands Used" "$(cat "$SKILLMD")"
+
+# Verify all required loki commands are documented
+for cmd in "loki doctor" "loki start" "loki run" "loki quick" "loki status --json" "loki resume" "loki ci" "loki docs check" "loki docs generate" "loki stop"; do
+  assert_contains "SKILL.md documents: $cmd" "$cmd" "$(cat "$SKILLMD")"
+done
 
 echo ""
 
@@ -321,6 +340,25 @@ for template in audit lld hld research docs; do
     assert_contains "template/$template.md has Exit Criteria" "Exit Criteria" "$CONTENT"
   fi
 done
+
+echo ""
+
+# ============================================================
+# P6 COMPLIANCE TESTS: No internal .loki/ file access
+# ============================================================
+echo -e "${YELLOW}--- P6 Compliance Tests ---${NC}"
+
+# SKILL.md should not reference internal Loki functions
+SKILL_CONTENT=$(cat "$SKILLMD")
+for func in "extract_learnings_from_session" "compound_session_to_solutions" "init_loki_dir" "update_continuity" "load_startup_learnings" "check_completion_promise"; do
+  assert_not_contains "SKILL.md does not call internal: $func" "$func" "$SKILL_CONTENT"
+done
+
+# gardening-check.sh should not read .loki/ files
+GARDENING_CONTENT=$(cat "$SCRIPT_DIR/scripts/gardening-check.sh")
+assert_not_contains "gardening: no .loki/STATUS.txt reads" ".loki/STATUS.txt" "$GARDENING_CONTENT"
+assert_not_contains "gardening: no .loki/queue reads" ".loki/queue" "$GARDENING_CONTENT"
+assert_not_contains "gardening: no .loki/state reads" ".loki/state" "$GARDENING_CONTENT"
 
 echo ""
 

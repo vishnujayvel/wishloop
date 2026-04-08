@@ -1,14 +1,15 @@
 ---
 name: wishloop
 description: |
-  Universal SDLC orchestrator for projects using OpenSpec CLI + Loki Mode.
-  Closed-loop: spec -> execute -> verify -> file bugs -> loop. Includes gardening
-  agent for monitoring, institutional learning accumulation across runs, and
-  autonomous issue fixing with intelligent batching.
+  Thin session manager for Loki Mode. Configures, launches, monitors, and babysits
+  Loki sessions. Loki handles all coding, testing, review, and documentation internally.
+  Wishloop handles work intake, proposal enrichment, session configuration, PR feedback
+  loops, and cross-session concerns.
 
-  Triggers on: "openspec", "loki", "SDLC", "run the loop", "wishloop", "worktrunk" + parallel context, "fix these bugs" + loki context,
-  "build X from scratch" + openspec context, "continue where we left off" with openspec/changes/,
-  greenfield projects with openspec/ directory, "archive the change", "verify and triage".
+  Triggers on: "openspec", "loki", "SDLC", "run the loop", "wishloop", "worktrunk" + parallel context,
+  "fix these bugs" + loki context, "build X from scratch" + openspec context,
+  "continue where we left off" with openspec/changes/, greenfield projects with openspec/ directory,
+  "archive the change", "verify and triage".
 
   DO NOT USE FOR one-off brainstorming (use superpowers:brainstorming),
   web/topic research (use deep-research), Kiro-based SDLC (use pdlc-autopilot),
@@ -16,494 +17,418 @@ description: |
   or generic "fix this bug" without openspec/loki context.
 ---
 
-# Wishloop
+# Wishloop v2
 
-Classify work, spec it via OpenSpec CLI, execute via Loki Mode, monitor with gardening agent, capture run data and learnings, verify, file bugs, loop.
+Thin session manager for Loki Mode. Classify work, spec it via OpenSpec CLI, configure and launch Loki, monitor the session, babysit the PR, loop.
 
-### Prerequisites
+## Prerequisites
 
 - **openspec CLI** — `openspec` (spec generation)
 - **loki CLI** — `loki start` (autonomous execution, requires `--dangerously-skip-permissions`)
 - **gh CLI** — `gh issue create` / `gh issue list` (bug filing and feedback loop)
-- **Worktrunk** *(recommended)* — `brew install worktrunk && wt config shell install` (worktree lifecycle, merge automation, parallel agents). Optional — the skill falls back to manual git worktrees when not installed.
+- **Worktrunk** *(recommended)* — `brew install worktrunk && wt config shell install` (worktree lifecycle, merge automation). Optional — the skill falls back to manual git worktrees when not installed.
+
+## Design Principles
+
+| Principle | Rule |
+|-----------|------|
+| **P1: Configure, Don't Reimplement** | If Loki has a capability, configure it via env vars, flags, or CLAUDE.md. Never rewrite it. |
+| **P2: Monitor, Fix Post-Session** | Lightweight alive/dead/stalled check during session. Fix gaps after. |
+| **P3: Match Session Type to Work** | `loki start --parallel` for features. `loki run #N --pr` for single bugs. `loki quick` for review fixes. |
+| **P4: Strong Proposals, Thin Wrapper** | Quality of the Loki session = quality of the proposal. Invest in enrichment. |
+| **P5: Upstream When Generic** | If a Wishloop feature is generic, contribute upstream. Plan B after 2 weeks. |
+| **P6: External Interface Only** | Wishloop calls ONLY Loki's public CLI. NEVER internal run.sh functions. Zero `.loki/` file coupling. |
 
 ---
 
-## Phase 1: Classify Work
+## Step 1: Intake
 
-Map the request to exactly one work type:
+Classify the work request into a type and route accordingly.
 
-| Signal | Work Type | Spec? | Loki? | Template |
-|--------|-----------|-------|-------|----------|
-| "build X from scratch", greenfield | **Greenfield** | Full init | Full 9-phase | — |
-| "add X", "integrate Y", new feature | **Feature** | `openspec new change` | Targeted | — |
-| "fix #N", "fix these bugs", bug list | **Bug Batch** | Batched changes | Per-wave | — |
-| "design X", "architecture for Y" | **Architecture** | Proposal + design only | No | `templates/hld.md` or `templates/lld.md` |
-| "refactor", "migrate from X to Y" | **Refactor** | `openspec new change` (MODIFIED) | Full | — |
-| "research", "spike", "evaluate" | **Research** | No | No | `templates/research.md` |
-| "audit X", "review Y for Z" | **Audit** | No | No | `templates/audit.md` |
-| "rethink the X", "brainstorm" | **Product Thinking** | No | No | — |
-| "add tests", "E2E coverage" | **Testing** | Test-focused change | Testing phase only | — |
-| "write docs", "API docs" | **Documentation** | No | No | `templates/docs.md` |
+| Signal | Work Type | Spec? | Loki Session Type |
+|--------|-----------|-------|-------------------|
+| "build X from scratch", greenfield | **Greenfield** | Full OpenSpec init | `loki start --parallel` |
+| "add X", "integrate Y", new feature | **Feature** | `openspec new change` | `loki start --parallel` |
+| "refactor", "migrate from X to Y" | **Refactor** | `openspec new change` (MODIFIED) | `loki start --parallel` |
+| "fix #N", single issue | **Bug fix (single)** | None | `loki run #N --pr` |
+| "fix these bugs", bug list | **Bug batch** | Batched changes | `loki start --parallel` per wave |
+| "add tests", "E2E coverage" | **Testing** | Test-focused change | `loki start --parallel` |
+| "write docs", "API docs" | **Documentation** | None | `loki docs generate` (no session) |
+| "design X", "architecture for Y" | **Architecture** | Proposal + design only | None |
+| "research", "spike", "evaluate" | **Research** | None | None |
+| "audit X", "review Y for Z" | **Audit** | None | None |
+| "rethink the X", "brainstorm" | **Product Thinking** | None | None |
 
-**Distinguish UI tasks from integration tasks.** "Rewrite WritersRoomView" and "Wire Claude subprocess into WritersRoom" are separate tasks with different files and risk. Never combine them.
+**Non-code work types** (Architecture, Research, Audit, Documentation, Product Thinking): Load the matching template from `templates/` and skip to output. No Loki session needed.
 
----
-
-## Phase 2: Intake
-
-```
-1. Check if openspec/ exists — if not: openspec init --tools claude
-2. Read existing specs: openspec list --specs
-3. Read active changes: openspec list
-4. Check codebase state: git status, git log --oneline -5
-5. Read CLAUDE.md if it exists
-6. Detect build system: package.json | Makefile | Cargo.toml | go.mod | pyproject.toml
-```
-
-**Greenfield:** Ask product context questions ONE AT A TIME. Generate UI mockups (HTML in docs/mockups/) if the project has a UI. Let user choose direction before proceeding.
-
-**Feature:** Read relevant spec files. Identify which specs will be MODIFIED vs ADDED.
-
-**Bug Batch:** Pull issues via `gh issue list --state open --json number,title,body,labels`. Run the Intelligent Batching Algorithm (see `references/batching-algorithm.md`).
-
-**Audit / Research / Product Thinking / Documentation:** Load the matching template from `templates/` and skip to Phase 5 (non-code paths).
+| Work Type | Template |
+|-----------|----------|
+| Architecture (HLD) | `templates/hld.md` |
+| Architecture (LLD) | `templates/lld.md` |
+| Research | `templates/research.md` |
+| Audit | `templates/audit.md` |
+| Documentation | `templates/docs.md` |
 
 ---
 
-## Phase 3: Spec
+## Step 2: Spec + Enrich
 
-Always use `openspec` CLI (`openspec`), never Kiro skills. OpenSpec produces delta specs (ADDED/MODIFIED/REMOVED) that Loki's adapter needs.
+For code work types, produce the input that Loki needs.
 
-```bash
-# Greenfield
-openspec init --tools claude && openspec new change <project-name>
+### 2a. Generate spec
 
-# Feature / Refactor / Testing / Bug Batch
-openspec new change <name>
-```
+**Greenfield:** `openspec init --tools claude && openspec new change <name>`
 
-Write artifacts in `openspec/changes/<name>/`:
-1. `proposal.md` — problem, goals, scope, non-goals, testing strategy
-2. `design.md` — architecture, components, data flow, API contracts
-3. `specs/<domain>/spec.md` — delta specs with GIVEN/WHEN/THEN scenarios
-4. `tasks.md` — ordered task groups with dependencies and acceptance criteria
+**Feature/Refactor/Testing:** `openspec new change <name>` — write `proposal.md` with problem, goals, scope, non-goals, testing strategy, and exit criteria (defines the completion promise).
 
-**Loki can start from just a proposal.** If the proposal has clear requirements, technology choices, and testing strategy, skip writing design/specs/tasks — Loki handles the rest. Only generate full OpenSpec artifacts for brownfield modifications needing structured delta context.
+**Bug fix (single):** No spec needed. `loki run #N --pr` imports the GitHub issue directly.
 
-**Every proposal MUST include a `## Context` section.** For simple changes, auto-generate it via Phase 3b. For complex changes, augment with design decisions. Design/specs/tasks artifacts remain optional for focused changes.
+**Bug fix in specced domain:** If the bug touches code governed by an existing OpenSpec domain spec, use `loki start --openspec` instead.
 
-**Architecture work type:** Write `proposal.md` and `design.md` only. No tasks. Output is the design.
+**Bug batch:** Run the intelligent batching algorithm (see `references/batching-algorithm.md`), then generate a minimal proposal per wave.
+
+Loki can start from just a proposal. Only generate full OpenSpec artifacts (design, specs, tasks) for brownfield modifications needing structured delta context.
 
 Validate: `openspec validate <name>` — all artifacts must pass before proceeding.
 
-**If validation fails:** Show errors, ask user to fix, retry. Do not proceed with invalid specs.
+### 2b. Enrich proposal
 
----
-
-### Phase 3b: Auto-Enrich Proposal
-
-Before proceeding to Phase 4, append a `## Context (auto-generated)` section to the proposal. This is mechanical collection, not creative writing.
-
-**Use the enrichment script:**
 ```bash
 bash <skill-path>/scripts/enrich-proposal.sh <project-dir> <proposal-path>
 ```
 
-**Or manually collect:**
+Injects: relevant file paths + line numbers, CLAUDE.md rules, test file patterns, build/run/test commands, recent git history, tech stack summary.
 
-| Context | How to collect | Why Loki needs it |
-|---------|----------------|-------------------|
-| **Relevant file paths + line numbers** | `grep` for key terms from the proposal title/scope | Loki starts editing immediately, not searching |
-| **CLAUDE.md rules that apply** | Pattern-match proposal scope against Known Pitfalls, Mandatory Rules | Loki doesn't violate project conventions |
-| **Test file patterns** | Read 1-2 existing test files matching the scope | Loki writes tests that match the project's style |
-| **Build/run/test commands** | Read `scripts` from package.json / Makefile / Cargo.toml | Loki can verify its own work |
-| **Recent git history for relevant files** | `git log --oneline -3 <files>` | Loki knows what changed recently and why |
-| **Tech stack summary** | Read package.json deps or go.mod or pyproject.toml | Loki knows what libraries are available |
+### 2c. Proposal quality gate
 
-**The enrichment is project-agnostic** — it reads whatever's in the current repo.
-
-### Proposal Quality Gate (before Phase 5)
-
-Before launching Loki, validate the proposal has:
-- [ ] At least one file path reference (in `## Context` or body)
+Before launching Loki, verify the proposal has:
+- [ ] At least one file path reference
 - [ ] At least one acceptance criterion
-- [ ] A testing strategy (even just "run existing tests")
+- [ ] A testing strategy
 - [ ] The project's build command
 
-If any are missing, run the enrichment script or manually add the missing context. **Do not launch Loki with an incomplete brief** — thin proposals cause Loki to waste 5-10 minutes on discovery and produce convention-violating code.
+Do not launch Loki with an incomplete brief — thin proposals cause wasted discovery time.
 
 ---
 
-## Phase 4: Context Prep + Learnings Injection
+## Step 3: Configure
 
-**Update CLAUDE.md BEFORE Loki runs.** Loki reads it at start — wrong rules mean wrong implementation.
+Before launching Loki, set the environment and clean state.
 
-### 4a. Inject learnings from prior runs
+### 3a. Clean stale worktrees
 
-Run `scripts/inject-learnings.sh <project-dir>` or manually:
-1. Read `~/.local/share/wishloop/learnings.json`
-2. Filter by project's tech stack (always include loki, workflow, testing categories)
-3. Append relevant warnings to CLAUDE.md as `## Known Pitfalls`
-
-See `references/learnings-schema.md` for filtering logic and injection format.
-
-### 4b. Generate .worktrunk.toml (if Worktrunk is available)
-
-If `wt` is on PATH and the project has no `.worktrunk.toml`, generate one with hooks:
-
-```toml
-[hooks]
-post-start = ["<deps-install-command>"]    # e.g., "npm install", "cargo build"
-pre-merge = ["<build-command>", "<test-command>"]  # e.g., "npm run build", "npm test"
-post-merge = ["openspec archive $(git branch --show-current)"]
+```bash
+git worktree prune 2>/dev/null
 ```
 
-Detect the build system from Phase 2 intake (package.json → npm, Cargo.toml → cargo, go.mod → go, pyproject.toml → pip/pytest, Makefile → make). If `.worktrunk.toml` already exists, merge Wishloop hooks with existing configuration — do not overwrite.
+**Do NOT `rm -rf .loki/`.** Loki's initialization is additive — it preserves valid state. Destroying `.loki/` deletes checkpoints needed for `loki resume`.
 
-### 4c. Discover and inject ADRs
+### 3b. Pre-launch validation
 
-Scan the target project for ADRs in common locations: `docs/adrs/`, `docs/decisions/`, `architecture/decisions/`, and files matching `ADR-*.md` or `adr-*.md` in the repo root.
+```bash
+loki doctor    # Verify prerequisites, skill symlinks, provider availability
+```
 
-For each ADR found:
-1. Extract title, status (`accepted`, `proposed`, `superseded`, `deprecated`), and a one-line summary from the document
-2. Check if the ADR's topic overlaps with files or domains in the current OpenSpec change — match by keywords in the ADR title/context against changed file paths, spec domains, and proposal scope
-3. If relevant, append to the project's CLAUDE.md under a `## Relevant ADRs` section (create the section if absent; never overwrite existing CLAUDE.md content)
+If `loki doctor` fails: print diagnostic output. Do not proceed until doctor passes.
 
-Injection format:
+### 3c. Session configuration
+
+Store in `.wishloop/loki.env` (sourced before every launch):
+
+```bash
+# .wishloop/loki.env
+LOKI_GITHUB_PR=true
+LOKI_GITHUB_SYNC=true
+LOKI_COUNCIL_ENABLED=true
+LOKI_AUDIT_LOG=true
+LOKI_COMPLETION_PROMISE="PR created with all tests passing and no HIGH/CRITICAL review findings"
+```
+
+Source before launch: `set -a && source .wishloop/loki.env && set +a`
+
+### 3d. CLAUDE.md preparation
+
+Ensure the project's CLAUDE.md contains:
+- Build/test/lint commands
+- Project conventions
+- Any OpenSpec spec references
+- Learnings format instruction (fixes Loki's compound learning pipeline):
+
 ```markdown
-- **ADR-NNN: Title** (status) — summary. Applies because: [reason]
+## Loki Session Rules
+When you encounter errors, unexpected behavior, or learn something non-obvious,
+ALWAYS update CONTINUITY.md's "## Mistakes & Learnings" section with bullet points:
+- **What Failed:** [specific error]
+- **Why It Failed:** [root cause]
+- **How to Prevent:** [concrete action]
 ```
 
-If no ADRs are found or none are relevant, skip silently.
+### 3e. Worktrunk configuration (if available)
 
-See `references/adr-integration.md` for discovery patterns and relevance matching.
+If `wt` is on PATH and no `.worktrunk.toml` exists, generate one with detected build system hooks.
 
-### 4d. Checkpoint commit
+### 3f. Checkpoint commit
 
 ```bash
-git add -A && git commit -m "checkpoint: prep for loki run (<change-name>)"
-loki doctor  # validate prerequisites
+git add -A && git commit -m "checkpoint: prep for loki session (<change-name>)"
 ```
 
-**Always commit before Loki.** Clean git state is your recovery point if Loki breaks things. The checkpoint captures ADR injections from 4c, learnings from 4a, and any `.worktrunk.toml` from 4b.
+Commit spec files, enriched proposal, and CLAUDE.md changes BEFORE creating worktrees.
 
-**If `loki doctor` fails:** Print diagnostic output. Common fixes: install missing deps, clear stale `.loki/` state, ensure `claude` CLI is available with `--dangerously-skip-permissions`.
+### 3g. Launch
 
----
+| Work Type | Launch Command |
+|-----------|---------------|
+| Feature/Greenfield/Refactor | `wt switch -c -x "loki start --parallel --openspec openspec/changes/<name>" <name>` |
+| Bug fix (single) | `loki run #N --pr` |
+| Bug batch wave | `wt switch -c -x "loki start --parallel --openspec openspec/changes/wave-N" wave-N` |
 
-## Phase 5: Execute
-
-### Code work (Greenfield, Feature, Bug Batch, Refactor, Testing)
-
-**If Worktrunk (`wt`) is available** (preferred — handles worktree creation, isolation, and cleanup):
-
+**Background fallback (no Worktrunk):**
 ```bash
-wt switch -c -x "loki start --parallel --openspec openspec/changes/<change-name>" <change-name>
-```
-
-For focused changes (plain PRD path, no OpenSpec adapter needed):
-
-```bash
-wt switch -c -x "loki start ./proposal.md --parallel --yes" <change-name>
-```
-
-**If Worktrunk is not installed,** fall back to direct invocation:
-
-```bash
-nohup loki start --parallel --openspec openspec/changes/<change-name> > /tmp/loki-<change>.log 2>&1 &
+nohup loki start --parallel --openspec openspec/changes/<name> > /tmp/loki-<name>.log 2>&1 &
 LOKI_PID=$!
-echo "Loki PID: $LOKI_PID, started at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+echo "Loki PID: $LOKI_PID"
 ```
 
-For focused changes: `loki start ./proposal.md --parallel --yes`
+If launch fails: check `/tmp/loki-<change>.log`. If Loki exits within 30 seconds, log the error.
 
-> **Note:** If Worktrunk is not installed, install with: `brew install worktrunk && wt config shell install`
-
-**Always use `nohup ... > logfile 2>&1 &` for the fallback path.** Without proper detachment, the Bash tool's FD closure causes Loki's child `claude` process to hang on broken stdout pipes.
-
-**If launch fails:** Check `/tmp/loki-<change>.log` for errors. Suggest user launch from separate terminal.
-
-**If another Loki is running:** See `references/worktree-isolation.md` for concurrent session handling via git worktrees.
-
-### Parallel Bug Batch waves
-
-When running multiple bug-batch waves concurrently, Worktrunk isolates each wave in its own worktree:
-
+**Initialize state tracking:**
 ```bash
-wt switch -c -x "loki start --parallel --openspec openspec/changes/wave-1" wave-1
-wt switch -c -x "loki start --parallel --openspec openspec/changes/wave-2" wave-2
+echo '{"step":"session","change":"<name>","pid":PID,"startedAt":"ISO"}' > .wishloop/state.json
 ```
-
-Each wave runs in a separate worktree, so they do not conflict. Without Worktrunk, waves must run sequentially or use manual `git worktree add` (see `references/worktree-isolation.md`).
-
-### Non-code work types
-
-For non-code work types, **load the matching template** from `templates/` and follow its workflow:
-
-| Work Type | Template | Output |
-|-----------|----------|--------|
-| **Audit** | `templates/audit.md` | `docs-internal/audit-<name>.md` + GitHub issues |
-| **Architecture (HLD)** | `templates/hld.md` | `docs/plans/<name>-architecture.md` + ADRs |
-| **Architecture (LLD)** | `templates/lld.md` | `docs/plans/<name>.md` or `openspec/changes/<name>/design.md` |
-| **Research** | `templates/research.md` | `docs/plans/<name>-research.md` |
-| **Documentation** | `templates/docs.md` | `docs/` files |
-| **Product Thinking** | _(no template)_ | `product-context.md` — brainstorm with user, ONE question at a time |
-
-Each template defines: required inputs, step-by-step workflow, output artifacts, quality gates, and exit criteria. Non-code templates skip Phases 5-6 (Execute/Monitor) entirely. Phase 7 (Capture) still runs — learnings apply to all work types.
-
-**Initialize phase state before launch:**
-```bash
-mkdir -p .wishloop
-echo "{\"phase\": 5, \"phaseLabel\": \"Execute\", \"change\": \"<change-name>\", \"startedAt\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > .wishloop/state.json
-```
-
-**After launching Loki, immediately start Phase 6 monitoring.** When monitoring detects completion (`ACTION: ADVANCE_TO_PHASE_7`), proceed directly to Phase 7 → Phase 8 → Phase 9 without pausing for user input.
 
 ---
 
-## Phase 6: Monitor (Gardening Loop)
+## Step 3.5: Monitor
 
-Run monitoring every 5 minutes while Loki executes. Use:
+While the Loki session runs, Wishloop monitors session health via Loki's public CLI.
+
+**For Worktrunk sessions (`wt switch -c -x`):** Worktrunk blocks until the command completes. Check exit code: 0 = completed, non-zero = crashed.
+
+**For background sessions:** Run the monitoring script every 5 minutes:
+
 ```bash
 bash <skill-path>/scripts/gardening-check.sh <project-dir> <change-name>
-# Or via /loop: /loop 5m bash scripts/gardening-check.sh . my-change
+# Or via /loop: /loop 5m bash <skill-path>/scripts/gardening-check.sh . my-change
 ```
 
-The script runs 5 checks (commits, STATUS.txt, active agents, build, conflicts), detects anomalies (stalls, crashes, build breaks, completion), and appends journal entries to `docs/plans/pipeline-journal.md`.
+The monitoring script uses `loki status --json` to check session health:
 
-When Worktrunk is available, `wt list` provides structured status for all active worktrees — branch name, commit count, ahead/behind tracking, and CI status — instead of raw git parsing. The gardening script auto-detects Worktrunk and falls back to git-based checks when `wt` is not on PATH.
+```bash
+STATUS_JSON=$(loki status --json 2>/dev/null)
+SESSION_STATUS=$(echo "$STATUS_JSON" | jq -r '.status')
+ITERATION=$(echo "$STATUS_JSON" | jq -r '.iteration')
+```
 
-See `references/gardening-checks.md` for anomaly thresholds and steering commands (PAUSE/STOP/HUMAN_INPUT).
+| Status | Meaning | Action |
+|--------|---------|--------|
+| `completed` | Session finished | Proceed to Step 4 |
+| `stopped` | Stopped (by user or error) | Check logs, proceed to Step 4 |
+| `running` | Still working | Continue polling |
+| `unknown` | No active session | Check PID, may have crashed |
 
-**Loki's first iteration takes 5-10 minutes** (reading context, planning). No commits in this window is normal. Loki often does everything in ONE atomic commit.
+**Stall detection:** If `iteration` hasn't changed across 3 consecutive polls (15 minutes), emit a warning.
 
-**Loki queue is stale between runs.** `queue/pending.json` is never cleaned up. Trust `git log` for progress.
+**Crash recovery:**
+1. Log crash with error details
+2. Clean orphaned worktrees: `git worktree prune`
+3. Update `.wishloop/state.json` with `{"status": "crashed", "error": "..."}`
+4. Suggest: `loki resume` (continue from last checkpoint)
+5. Or: restart from Step 3 (clean launch)
 
-Dashboard: `http://localhost:57374/`
+**Emergency stop:** `loki stop` — kills a stalled session immediately.
 
-### Phase Continuation Triggers
-
-The gardening script outputs ACTION directives. **You MUST act on them immediately:**
+**Action directives from monitoring:**
 
 | Directive | Meaning | Action |
 |-----------|---------|--------|
-| `ACTION: ADVANCE_TO_PHASE_7` | Loki completed successfully | Stop monitoring loop. Run Phase 7 immediately. Then Phase 8. Then Phase 9 if autonomous. |
-| `ACTION: INVESTIGATE_EXIT` | Loki agents exited without completion signal | Check Loki logs. If work is done, advance to Phase 7. If crashed, file bug and retry. |
-
-**Do NOT treat gardening output as a status update.** When you see `ACTION: ADVANCE_TO_PHASE_7`, stop monitoring and proceed. The pipeline is autonomous — waiting for human input between phases is a bug.
-
-### Phase State Tracking
-
-Before launching Loki (Phase 5), initialize state:
-```bash
-mkdir -p .wishloop
-echo '{"phase": 5, "phaseLabel": "Execute", "change": "<name>", "startedAt": "<ISO>"}' > .wishloop/state.json
-```
-
-The gardening script updates `.wishloop/state.json` when it detects completion. You can also read it to know where the pipeline is:
-```bash
-cat .wishloop/state.json  # → {"phase": 7, ...} means proceed to Phase 7
-```
-
-Update state at each phase transition:
-```bash
-echo '{"phase": N, "phaseLabel": "<label>", "change": "<name>", "advancedAt": "<ISO>"}' > .wishloop/state.json
-```
+| `ACTION: SESSION_COMPLETE` | Loki completed successfully | Stop monitoring. Run Step 4 immediately. |
+| `ACTION: SESSION_STALLED` | No progress for 15+ minutes | Warn user. Consider `loki stop` + `loki resume`. |
+| `ACTION: SESSION_CRASHED` | Session died unexpectedly | Log error. Suggest `loki resume` or clean restart. |
 
 ---
 
-## Phase 7: Post-Run Capture
+## Step 4: Post-Session
 
-> **Trigger:** Entered automatically when gardening detects completion (`ACTION: ADVANCE_TO_PHASE_7`) or when you confirm Loki has finished. Do NOT wait for user prompt.
+After Loki's session ends (completion promise fulfilled or max iterations):
 
-Every Loki run MUST produce a run instance record. No exceptions.
+### 4a. Learnings verification
 
-### 7a. Auto-generate run instance JSON
+Loki's run.sh automatically calls its extraction pipeline at session end. Wishloop verifies it produced output:
 
-Run `scripts/capture-run.sh <project-dir> <change> <checkpoint-hash> <start-time> <pid>` or manually collect: commits since checkpoint, files changed, build/test results, STATUS.txt.
+```bash
+MISTAKES=$(wc -l < ~/.loki/learnings/mistakes.jsonl 2>/dev/null || echo "0")
+if [ "$MISTAKES" -le 1 ]; then
+  # Loki's extraction found nothing — fall back to interactive extraction
+  # Prompt user: What surprised you? What did Loki get wrong? New patterns?
+  # Write to ~/.local/share/wishloop/learnings.json
+fi
+```
 
-See `references/run-instance-schema.md` for the full JSON schema and field population guide.
+**Time-boxed exception:** This fallback exists because Loki's extraction pipeline currently produces empty output. Step 3d's CLAUDE.md instruction is designed to fix the root cause. Remove the fallback after 3 consecutive sessions produce JSONL with > 1 line.
 
-### 7b. Extract learnings interactively
+### 4b. Documentation validation
 
-Prompt user with 3 questions: What surprised you? What did Loki get wrong? New patterns to remember?
+```bash
+loki docs check 2>/dev/null
+```
 
-### 7c. Update accumulated learnings
+If exit code is 1 (docs stale/missing) AND `--parallel` was used:
+```bash
+loki docs generate    # Fallback: generate full doc suite
+```
 
-Categorize learnings (by technology, loki, workflow, or testing). Deduplicate against existing entries. Write to `~/.local/share/wishloop/learnings.json`.
+### 4c. Run archival
 
-See `references/learnings-schema.md` for categorization logic and deduplication rules.
+```bash
+bash <skill-path>/scripts/capture-run.sh <project> <change> <checkpoint-hash> <start-time> <pid>
+```
 
-### 7d. Update ADRs with implementation consequences
+Records: commit count, files changed, build/test results, duration, bugs found.
 
-Check if any ADRs were injected into CLAUDE.md in Phase 4c. For each relevant ADR:
+### 4d. Independent build/test verification
 
-1. Ask: "Did implementation reveal anything this ADR didn't anticipate?"
-2. If yes, append a dated entry to the ADR's `## Consequences` section:
-   ```markdown
-   ### Implementation feedback — YYYY-MM-DD (<change-name>)
-   <what was discovered>
-   ```
-3. If an ADR is discovered to be wrong or outdated, change its status to `**Status:** superseded` and note the reason inline
+Run the project's own build and test commands:
+```bash
+npm run build && npm test    # or equivalent
+```
 
-If no ADRs were injected, skip this phase.
-
-See `references/adr-integration.md` for update format.
+If build or tests fail: file a GitHub issue with details. Proceed to Step 5 — the babysitter handles fixes.
 
 ---
 
-## Phase 8: Verification & Issue Filing
+## Step 5: PR Babysitter
 
-> **Trigger:** Entered automatically after Phase 7 completes. Do NOT wait for user prompt.
+After the Loki session creates a PR:
 
-### Verify build and tests
+### 5a. Wait for CodeRabbit
 
-Run the project's build, unit test, and E2E commands (detected in Phase 2). Also run type checking if applicable (e.g., `npx tsc --noEmit`).
+Poll `gh pr checks <N>` every 90 seconds. Detect "Currently processing" in recent comments.
 
-**Loki declares completion based on its own assessment.** It won't test dragging, native window chrome, or visual aesthetics. Always do a manual spot-check.
+**Timeout:** If CodeRabbit hasn't responded within 10 minutes, proceed with `loki ci --pr` as the sole quality gate.
 
-### File issues immediately
+### 5b. Address review comments
+
+When unresolved review threads are detected:
 
 ```bash
-gh issue create --title "<description>" --body "<details>" --label "bug" --label "auto-detected"
+PR_BRANCH=$(gh pr view <N> --json headRefName --jq '.headRefName')
+git checkout "$PR_BRANCH"
+
+loki quick "Read and address all review comments on PR #<N>. \
+  Run 'gh pr view <N> --comments' to see them. \
+  Fix each issue, commit, and push."
 ```
 
-All issues MUST have `auto-detected` label — this enables the autonomous loop to distinguish machine-detected from human-filed issues. File bugs as soon as confirmed, not in a batch later.
+If `loki quick` fails (3 iterations exhausted, unresolved threads remain):
+1. Generate a focused proposal describing remaining comments
+2. Launch `loki start` on the same PR branch with `LOKI_GITHUB_PR=false`
+3. **Circuit breaker:** After 3 escalations for the same PR, pause and request user input.
 
-Update the run instance JSON with `bugsFound` and any `manualFixesNeeded`.
-
-### Archive
-
+**Multiple PRs (bug batch):**
 ```bash
-openspec archive <change-name>
-git add -A && git commit -m "post-loki: archive <change-name>, update specs"
-```
-
-### Merge
-
-**If Worktrunk (`wt`) is available** (preferred — squash + rebase + fast-forward + worktree cleanup in one command):
-
-```bash
-wt merge main
-```
-
-Pre-merge hooks run tests automatically before the merge is allowed. No manual test step needed.
-
-**If Worktrunk is not installed,** merge manually:
-
-```bash
-git checkout main
-git merge --squash <change-branch>
-git commit -m "feat: <change-name>"
-openspec archive <change-name>
-```
-
-### Auto-merge criteria
-
-When ALL of the following are true, **merge immediately without asking the user:**
-
-- CI checks pass (build + tests green)
-- Code review (e.g., CodeRabbit) has no unresolved blocking inline comments
-- No merge conflicts
-
-**Only pause for user input** when blocking review comments require design decisions that the agent cannot resolve autonomously.
-
-### Merge error handling
-
-- **Conflicts:** Report the conflicting files to the user and pause the autonomous loop for manual resolution. Do not attempt automatic conflict resolution.
-- **Pre-merge hook failure (tests fail):** File a GitHub issue with the test failure details (`gh issue create --title "Pre-merge test failure: <change>" --body "<details>" --label "bug" --label "auto-detected"`), then continue the loop to attempt a fix in the next iteration.
-
----
-
-### Phase 8b: PR Review Loop (Babysitter)
-
-> **Trigger:** Starts automatically after Phase 8 creates a PR (if not merging directly). Also handles PRs from parallel Loki runs.
-
-The PR babysitter monitors ALL open PRs in a single loop — no per-PR crons needed.
-
-**Start the babysitter:**
-```bash
-# Single check (for /loop integration)
 bash <skill-path>/scripts/pr-babysitter.sh once
-
-# Via /loop (recommended — checks every 3 minutes)
-/loop 3m bash <skill-path>/scripts/pr-babysitter.sh once
 ```
 
-**The script outputs ACTION directives:**
+### 5c. Final quality gate
 
-| Directive | Meaning | Action |
-|-----------|---------|--------|
-| `ACTION: MERGE_PR` | PR is ready (CI pass, no blocking comments, mergeable) | Run `gh pr merge <N> --squash --delete-branch` |
-| `ACTION: FIX_REVIEW_COMMENTS` | Unresolved review threads | Dispatch subagent to read comments and push fixes |
-| `ACTION: FIX_CI_FAILURE` | CI checks failing | Investigate and fix on the branch |
-| `ACTION: REBASE_PR` | Merge conflict | Rebase the branch onto main |
-| `ACTION: ALL_PRS_MERGED` | No open PRs remain | Stop the babysitter loop, proceed to Phase 9 |
+```bash
+loki ci --pr --fail-on critical,high
+```
 
-**Merge order:** PRs are processed oldest-first. After merging one PR, the next cycle may detect conflicts on remaining PRs — the script will emit `ACTION: REBASE_PR` for those.
+Exit codes: 0 = pass, 1 = findings exceed threshold, 2 = error. On 1: file issue and continue. On 2: log warning, proceed.
 
-**CodeRabbit handling:** The script detects "Currently processing" in recent comments and waits rather than merging prematurely.
+### 5d. Merge
 
-**Act on directives immediately.** Do not accumulate them. Merge when told to merge, fix when told to fix.
+```bash
+# With Worktrunk:
+wt merge main
+
+# Without:
+gh pr merge <N> --squash --delete-branch
+```
+
+Auto-merge criteria: CI passes, no unresolved blocking comments, no merge conflicts. Only pause for user input when blocking comments require design decisions.
 
 ---
 
-## Phase 9: Autonomous Issue Loop
+## Step 6: Loop
 
-The loop is the DEFAULT behavior — the user opts OUT, not in.
+After PR is merged:
 
-### Configuration (defaults)
-```
-autonomous: true | max_iterations: 5 | cooldown_minutes: 2
-issue_labels: ["bug", "auto-detected"]
-```
+1. `openspec archive <change>` (if OpenSpec was used)
+2. Clean up: `git worktree prune`
+3. Fetch open issues: `gh issue list --state open --json number,title,body,labels`
+4. If zero open issues: print "Pipeline clean" and exit
+5. Run intelligent batching algorithm (see `references/batching-algorithm.md`)
+6. Generate proposal for Wave 1
+7. Return to Step 2
 
-### Each iteration:
-1. **Re-fetch** ALL open issues: `gh issue list --state open --json number,title,body,labels`
-2. **Re-prioritize:** critical > bug > auto-detected > enhancement. Dependencies first. Smaller effort first within same tier.
-3. **Batch into waves** using the Intelligent Batching Algorithm (see `references/batching-algorithm.md`)
-4. **Cooldown:** Print run summary + next wave plan. Wait `cooldown_minutes`. User can type "stop", "skip", or steering input.
-5. **Auto-continue:** Generate minimal proposal from Wave 1 issues -> Phase 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
+**Exit conditions:** Zero open issues, max iterations reached (default 5), or user types "stop."
 
-### Exit conditions:
-- Zero open issues -> "Pipeline clean"
-- Max iterations reached -> print cumulative summary
-- User types "stop"
+**Cooldown:** 2 minutes between iterations. User can type "stop," "skip," or provide steering input.
 
 ### Cumulative summary (on exit):
-```
-=== Autonomous Loop Complete ===
+```text
+=== Wishloop Complete ===
 Iterations: {N} | Duration: {M} min | Commits: {C} | Files: {F}
 Issues at start: {N} | Filed: {N} | Resolved: {N} | Remaining: {N}
 Learnings captured: {N}
-Run records: {list of JSON paths}
 ```
 
 ---
 
-## Reference Documents
+## Loki Commands Used
 
-Read these as needed — they contain detailed schemas, algorithms, and guides:
+| Command | When | Purpose |
+|---------|------|---------|
+| `loki doctor` | Pre-launch (Step 3) | Validate prerequisites and skill symlinks |
+| `loki start --parallel` | Launch (Step 3g) | Feature/greenfield/refactor sessions |
+| `loki start` (no parallel) | Escalation (Step 5b) | Fix complex review comments on existing PR branch |
+| `loki run #N --pr` | Launch (Step 3g) | Single bug fix, issue-driven, lightweight |
+| `loki quick "task"` | PR babysitter (Step 5b) | Fix review comments, 3 iterations max |
+| `loki status --json` | Monitoring (Step 3.5) | Structured health check: status, iteration, task counts |
+| `loki resume` | Crash recovery (Step 3.5) | Resume from last checkpoint |
+| `loki ci --pr` | Pre-merge (Step 5c) | Final quality gate |
+| `loki docs check` | Post-session (Step 4b) | Verify doc coverage |
+| `loki docs generate` | Post-session fallback (Step 4b) | If docs stream didn't fire |
+| `loki stop` | Emergency (Step 3.5) | Kill stalled session |
 
-| Reference | When to read |
-|-----------|-------------|
-| `references/batching-algorithm.md` | Bug Batch classification or Phase 9 wave planning |
-| `references/run-instance-schema.md` | Phase 7 run capture or querying historical runs |
-| `references/learnings-schema.md` | Phase 4 learnings injection or Phase 7 extraction |
-| `references/worktree-isolation.md` | Phase 5 when another Loki session is already running |
-| `references/gardening-checks.md` | Phase 6 anomaly detection details or steering commands |
-| `references/adr-integration.md` | Phase 4 ADR discovery or Phase 7 ADR consequence updates |
+## State Tracking
+
+`.wishloop/state.json` tracks pipeline position for resumption across sessions:
+
+```bash
+# At Step 3g (launch):
+{"step": "session", "change": "<name>", "pid": PID, "startedAt": "ISO"}
+
+# At Step 3.5 (session completes):
+{"step": "post-session", "change": "<name>", "completedAt": "ISO"}
+
+# At Step 5 (babysitter):
+{"step": "babysitter", "pr": N, "change": "<name>"}
+
+# At Step 6 (loop):
+{"step": "loop", "iteration": N}
+```
 
 ## Scripts
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/gardening-check.sh <dir> <change>` | Run the 5 monitoring checks + journal append |
+| `scripts/gardening-check.sh <dir> <change>` | Lightweight session monitoring via `loki status --json` |
 | `scripts/capture-run.sh <dir> <change> <hash> <time> <pid>` | Generate run instance JSON |
-| `scripts/inject-learnings.sh <dir> [tech-csv]` | Filter and inject learnings into CLAUDE.md |
-| `scripts/enrich-proposal.sh <dir> <proposal-path>` | Auto-enrich proposal with project context (Phase 3b) |
-| `scripts/pr-babysitter.sh [interval\|once] [max-cycles]` | Monitor all open PRs, triage reviews, merge in order (Phase 8b) |
+| `scripts/enrich-proposal.sh <dir> <proposal-path>` | Auto-enrich proposal with project context (Step 2b) |
+| `scripts/pr-babysitter.sh [once\|interval] [max-cycles]` | Monitor all open PRs, triage reviews, merge in order (Step 5) |
+
+## Reference Documents
+
+| Reference | When to read |
+|-----------|-------------|
+| `references/batching-algorithm.md` | Bug batch classification or Step 6 wave planning |
+| `references/run-instance-schema.md` | Step 4c run capture or querying historical runs |
+| `references/learnings-schema.md` | Step 4a learnings verification |
+| `references/worktree-isolation.md` | Step 3g when another Loki session is already running |
 
 ## Canonical data location
 

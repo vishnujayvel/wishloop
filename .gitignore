@@ -7,6 +7,9 @@
 # OpenSpec changes (personal project data)
 openspec/changes/
 
+# Plans and design docs (working drafts, not shipping artifacts)
+docs/plans/
+
 # Temp files
 *.log
 .DS_Store
