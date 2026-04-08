@@ -133,18 +133,27 @@ If `loki doctor` fails: print diagnostic output. Do not proceed until doctor pas
 
 ### 3c. Session configuration
 
-Store in `.wishloop/loki.env` (sourced before every launch):
+Source the static config and compose the completion promise dynamically:
 
 ```bash
-# .wishloop/loki.env
-LOKI_GITHUB_PR=true
-LOKI_GITHUB_SYNC=true
-LOKI_COUNCIL_ENABLED=true
-LOKI_AUDIT_LOG=true
-LOKI_COMPLETION_PROMISE="PR created with all tests passing and no HIGH/CRITICAL review findings"
+# Source static process config
+set -a && source .wishloop/loki.env && set +a
+
+# Extract task-specific exit criteria from the proposal
+TASK_CRITERIA=""
+if [ -f "$PROPOSAL_PATH" ]; then
+  TASK_CRITERIA=$(sed -n '/## Exit Criteria/,/^## /p' "$PROPOSAL_PATH" | grep -E '^\s*[-*]' | sed 's/^[\s*-]*//' | tr '\n' '; ' | sed 's/; $//')
+fi
+
+# Compose full promise: task criteria + process bar
+if [ -n "$TASK_CRITERIA" ]; then
+  export LOKI_COMPLETION_PROMISE="${TASK_CRITERIA}. THEN: ${WISHLOOP_PROCESS_BAR}"
+else
+  export LOKI_COMPLETION_PROMISE="${WISHLOOP_PROCESS_BAR}"
+fi
 ```
 
-Source before launch: `set -a && source .wishloop/loki.env && set +a`
+This ensures every session knows both WHAT to build (from the proposal) and HOW to deliver it (PR + review + respond).
 
 ### 3d. CLAUDE.md preparation
 
@@ -152,15 +161,26 @@ Ensure the project's CLAUDE.md contains:
 - Build/test/lint commands
 - Project conventions
 - Any OpenSpec spec references
-- Learnings format instruction (fixes Loki's compound learning pipeline):
+- Learnings format instruction and PR review handling:
 
 ```markdown
 ## Loki Session Rules
+
+### Learnings
 When you encounter errors, unexpected behavior, or learn something non-obvious,
 ALWAYS update CONTINUITY.md's "## Mistakes & Learnings" section with bullet points:
 - **What Failed:** [specific error]
 - **Why It Failed:** [root cause]
 - **How to Prevent:** [concrete action]
+
+### PR Review Handling
+After creating a PR, you MUST:
+1. Wait for CodeRabbit to post its review (poll `gh pr checks` every 90 seconds)
+2. Read all review comments: `gh pr view <N> --comments`
+3. For each comment: fix the issue in code, then reply to the comment thread
+   with what you changed: `gh pr review <N> --comment --body "Fixed: <description>"`
+4. Push all fixes, then wait for CodeRabbit to re-review
+5. Only declare completion when all review threads are resolved
 ```
 
 ### 3e. Worktrunk configuration (if available)
@@ -237,6 +257,48 @@ ITERATION=$(echo "$STATUS_JSON" | jq -r '.iteration')
 5. Or: restart from Step 3 (clean launch)
 
 **Emergency stop:** `loki stop` — kills a stalled session immediately.
+
+### Wishloop Status Dashboard
+
+When checking session status, display this combined view showing what Wishloop configured and how Loki is progressing:
+
+```bash
+# Gather data
+STATUS_JSON=$(loki status --json 2>/dev/null)
+STATE_JSON=$(cat .wishloop/state.json 2>/dev/null)
+PROMISE=$(echo "$LOKI_COMPLETION_PROMISE" | fold -w 60)
+
+# Display
+echo "╔══════════════════════════════════════════════════════════╗"
+echo "║  WISHLOOP STATUS                                        ║"
+echo "╠══════════════════════════════════════════════════════════╣"
+echo "║  Change:  $(echo "$STATE_JSON" | jq -r '.change // "unknown"')"
+echo "║  Step:    $(echo "$STATE_JSON" | jq -r '.step // "unknown"')"
+echo "║  Started: $(echo "$STATE_JSON" | jq -r '.startedAt // "unknown"')"
+echo "╠══════════════════════════════════════════════════════════╣"
+echo "║  LOKI SESSION                                           ║"
+echo "║  Status:    $(echo "$STATUS_JSON" | jq -r '.status')"
+echo "║  Phase:     $(echo "$STATUS_JSON" | jq -r '.phase')"
+echo "║  Iteration: $(echo "$STATUS_JSON" | jq -r '.iteration')"
+echo "║  Tasks:     $(echo "$STATUS_JSON" | jq -r '.task_counts.completed')/$(echo "$STATUS_JSON" | jq -r '.task_counts.total') completed"
+echo "║  PID:       $(echo "$STATUS_JSON" | jq -r '.pid')"
+echo "╠══════════════════════════════════════════════════════════╣"
+echo "║  COMPLETION PROMISE                                     ║"
+echo "║  $PROMISE"
+echo "╠══════════════════════════════════════════════════════════╣"
+echo "║  PROPOSAL                                               ║"
+echo "║  $(head -1 "$PROPOSAL_PATH" 2>/dev/null || echo 'N/A')"
+echo "║  Exit criteria: $(grep -c '^\s*[-*]' <(sed -n '/## Exit Criteria/,/^## /p' "$PROPOSAL_PATH" 2>/dev/null) 2>/dev/null || echo '0') items"
+echo "╠══════════════════════════════════════════════════════════╣"
+echo "║  PR STATUS                                              ║"
+echo "║  $(gh pr list --json number,title,state --jq '.[0] | "#\(.number) \(.title) [\(.state)]"' 2>/dev/null || echo 'No open PR')"
+echo "╚══════════════════════════════════════════════════════════╝"
+```
+
+This dashboard is displayed:
+- At the start of each gardening check (Step 3.5)
+- When the user asks for status
+- In the cumulative summary at loop exit
 
 **Action directives from monitoring:**
 
