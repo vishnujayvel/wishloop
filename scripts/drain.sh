@@ -400,33 +400,21 @@ compose_completion_promise() {
   export LOKI_COMPLETION_PROMISE="$task_criteria. THEN: $process_bar"
 }
 
-# --- Helper: display Wishloop Status Dashboard ---
+# --- Helper: display Wishloop drain status ---
+# Wishloop owns drain-specific cumulative metrics; Loki owns session state.
+# We print our metrics inline, then delegate session detail to `loki status`.
 display_dashboard() {
-  local status_json
-  status_json=$(check_loki_status)
-  local state_json
-  state_json=$(cat "$STATE_FILE" 2>/dev/null || echo '{}')
-
-  echo "╔══════════════════════════════════════════════════════════╗"
-  echo "║  WISHLOOP DRAIN STATUS                                  ║"
-  echo "╠══════════════════════════════════════════════════════════╣"
-  printf "║  Iteration: %d / %d                                     ║\n" "$ITERATION" "$MAX_ITERATIONS"
-  printf "║  Label:     %-43s ║\n" "${LABEL_FILTER:-all}"
-  printf "║  Step:      %-43s ║\n" "$(echo "$state_json" | jq -r '.step // "unknown"')"
-  printf "║  Started:   %-43s ║\n" "$START_TIME"
-  echo "╠══════════════════════════════════════════════════════════╣"
-  echo "║  LOKI SESSION                                           ║"
-  printf "║  Status:    %-43s ║\n" "$(echo "$status_json" | jq -r '.status // "none"')"
-  printf "║  Phase:     %-43s ║\n" "$(echo "$status_json" | jq -r '.phase // "N/A"')"
-  printf "║  Iteration: %-43s ║\n" "$(echo "$status_json" | jq -r '.iteration // "N/A"')"
-  echo "╠══════════════════════════════════════════════════════════╣"
-  echo "║  CUMULATIVE                                             ║"
-  printf "║  Issues at start: %d | Resolved: %d | Filed: %d          ║\n" "$ISSUES_AT_START" "$ISSUES_RESOLVED" "$ISSUES_FILED"
-  printf "║  Sessions: %d | PRs merged: %d | Quick fixes: %d         ║\n" "$SESSIONS_LAUNCHED" "$PRS_MERGED" "$QUICK_FIXES"
-  echo "╠══════════════════════════════════════════════════════════╣"
-  echo "║  PR STATUS                                              ║"
-  printf "║  %-53s ║\n" "$(gh pr list --json number,title,state --jq '.[0] | "#\(.number) \(.title) [\(.state)]"' 2>/dev/null || echo 'No open PR')"
-  echo "╚══════════════════════════════════════════════════════════╝"
+  echo "── Wishloop drain status ──"
+  printf "  Iteration: %d / %d  |  Label: %s  |  Started: %s\n" \
+    "$ITERATION" "$MAX_ITERATIONS" "${LABEL_FILTER:-all}" "$START_TIME"
+  printf "  Cumulative: %d resolved, %d filed (start: %d) | sessions: %d, PRs: %d, quick: %d\n" \
+    "$ISSUES_RESOLVED" "$ISSUES_FILED" "$ISSUES_AT_START" \
+    "$SESSIONS_LAUNCHED" "$PRS_MERGED" "$QUICK_FIXES"
+  printf "  PR: %s\n" \
+    "$(gh pr list --json number,title,state --jq '.[0] | "#\(.number) \(.title) [\(.state)]"' 2>/dev/null || echo 'no open PR')"
+  echo ""
+  # Delegate session detail to Loki — its dashboard/status is the source of truth
+  loki status 2>/dev/null || echo "  (loki status unavailable)"
 }
 
 # --- Helper: print cumulative summary ---
