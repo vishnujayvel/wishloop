@@ -335,45 +335,29 @@ ITERATION=$(echo "$STATUS_JSON" | jq -r '.iteration')
 
 ### Wishloop Status Dashboard
 
-When checking session status, display this combined view showing what Wishloop configured and how Loki is progressing:
+Print a slim summary of Wishloop-only state (what we configured, our completion promise, the open PR), then delegate session detail to Loki:
 
 ```bash
-# Gather data
-STATUS_JSON=$(loki status --json 2>/dev/null)
-STATE_JSON=$(cat .wishloop/state.json 2>/dev/null)
-PROMISE=$(echo "$LOKI_COMPLETION_PROMISE" | fold -w 60)
+STATE_JSON=$(cat .wishloop/state.json 2>/dev/null || echo '{}')
 
-# Display
-echo "╔══════════════════════════════════════════════════════════╗"
-echo "║  WISHLOOP STATUS                                        ║"
-echo "╠══════════════════════════════════════════════════════════╣"
-echo "║  Change:  $(echo "$STATE_JSON" | jq -r '.change // "unknown"')"
-echo "║  Step:    $(echo "$STATE_JSON" | jq -r '.step // "unknown"')"
-echo "║  Started: $(echo "$STATE_JSON" | jq -r '.startedAt // "unknown"')"
-echo "╠══════════════════════════════════════════════════════════╣"
-echo "║  LOKI SESSION                                           ║"
-echo "║  Status:    $(echo "$STATUS_JSON" | jq -r '.status')"
-echo "║  Phase:     $(echo "$STATUS_JSON" | jq -r '.phase')"
-echo "║  Iteration: $(echo "$STATUS_JSON" | jq -r '.iteration')"
-echo "║  Tasks:     $(echo "$STATUS_JSON" | jq -r '.task_counts.completed')/$(echo "$STATUS_JSON" | jq -r '.task_counts.total') completed"
-echo "║  PID:       $(echo "$STATUS_JSON" | jq -r '.pid')"
-echo "╠══════════════════════════════════════════════════════════╣"
-echo "║  COMPLETION PROMISE                                     ║"
-echo "║  $PROMISE"
-echo "╠══════════════════════════════════════════════════════════╣"
-echo "║  PROPOSAL                                               ║"
-echo "║  $(head -1 "$PROPOSAL_PATH" 2>/dev/null || echo 'N/A')"
-echo "║  Exit criteria: $(grep -c '^\s*[-*]' <(sed -n '/## Exit Criteria/,/^## /p' "$PROPOSAL_PATH" 2>/dev/null) 2>/dev/null || echo '0') items"
-echo "╠══════════════════════════════════════════════════════════╣"
-echo "║  PR STATUS                                              ║"
-echo "║  $(gh pr list --json number,title,state --jq '.[0] | "#\(.number) \(.title) [\(.state)]"' 2>/dev/null || echo 'No open PR')"
-echo "╚══════════════════════════════════════════════════════════╝"
+echo "── Wishloop ──"
+echo "  Change:  $(echo "$STATE_JSON" | jq -r '.change // "unknown"')"
+echo "  Step:    $(echo "$STATE_JSON" | jq -r '.step // "unknown"')"
+echo "  Promise: $(echo "$LOKI_COMPLETION_PROMISE" | head -c 80)…"
+echo "  PR:      $(gh pr list --json number,title,state --jq '.[0] | "#\(.number) \(.title) [\(.state)]"' 2>/dev/null || echo 'no open PR')"
+echo ""
+
+# Delegate session detail to Loki — `loki status` / `loki dashboard` are the source of truth
+loki status 2>/dev/null || echo "(loki status unavailable)"
+# For a richer view, point the user at: loki dashboard open
 ```
 
 This dashboard is displayed:
 - At the start of each gardening check (Step 3.5)
 - When the user asks for status
 - In the cumulative summary at loop exit
+
+**Why slim?** Wishloop owns intake/session-mgmt state (change, step, completion promise). Loki owns session detail (phase, iteration, task counts, PID) and exposes a real dashboard via `loki dashboard start` / `loki dashboard --api` (v6.75.3). Don't reimplement what Loki ships natively.
 
 **Action directives from monitoring:**
 
